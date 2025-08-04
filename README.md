@@ -1,6 +1,8 @@
 # json-radial-graph
 Visualize and edit JSON, with zoom, pan, search and more
 
+### <a href="angeldgm.github.io/json-radial-graph/">Go to web app</a>
+
 ### Features
 ✅ Click on any node and it will become central node (with its children nodes around)
 
