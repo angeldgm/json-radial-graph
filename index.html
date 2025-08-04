@@ -1,0 +1,1689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>JSON Radial Graph Explorer (Enter Search + Zoom + Spacing + String ellipsis)</title>
+<style>
+  :root{
+    --bg:#0b0f14;--panel:#0f1621;--panel2:#0b1119;--text:#e6edf3;--muted:#9fb0c3;
+    --accent:#6aa9ff;--accent2:#51d0ff;--border:#1d2a3a;--node:#0f1623;--node2:#0c1320;
+    --nodeHover:#17243a;--edge:#2a3a52;--danger:#ff6363;--ok:#43d19e;--warn:#ffd166;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:radial-gradient(1200px 800px at 80% -10%, #182438 0%, #0b0f14 55%) no-repeat;
+    color:var(--text); font:14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    overflow:hidden;
+  }
+
+  .topbar{
+    position:sticky;top:0;z-index:20;backdrop-filter:saturate(1.2) blur(10px);
+    background:linear-gradient(0deg,#0b0f14aa,#0b0f1490);border-bottom:1px solid var(--border);
+  }
+  .topbar-inner{display:grid;grid-template-columns:auto 1fr auto;gap:12px;padding:10px 16px;align-items:center}
+  .brand{display:flex;gap:10px;align-items:center}
+  .logo{width:28px;height:28px;border-radius:8px;background:conic-gradient(from 200deg,var(--accent),var(--accent2),#bb86fc,var(--accent));box-shadow:0 0 0 2px #0003 inset,0 8px 24px #0006}
+  .title{font-weight:700}
+  .subtitle{color:var(--muted);font-size:12px}
+
+  .controls{display:flex;gap:8px;flex-wrap:wrap;justify-self:center}
+  .file-label,.btn{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;cursor:pointer;
+    background:linear-gradient(180deg,#182335,#111826);border:1px solid var(--border);color:var(--text);
+    transition:transform .05s ease, background .15s ease, border-color .15s ease; user-select:none}
+  .file-label:hover,.btn:hover{background:#1a2639}
+  .file-label:active,.btn:active{transform:translateY(1px)}
+  .btn.primary{background:linear-gradient(180deg,#1b2d4a,#16243a);border-color:#254064}
+  .btn.danger{border-color:#4a2330;background:linear-gradient(180deg,#2a1620,#1b0f16);color:#ffd5d5}
+  .btn.success{border-color:#1f3d31;background:linear-gradient(180deg,#143527,#10281f);color:#d4ffea}
+  .btn.small{padding:4px 8px;font-size:12px;border-radius:8px}
+  .file-input{display:none}
+  .file-name{color:var(--muted);font-size:12px;margin-left:8px}
+  .search-wrap{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:10px;background:#0d1420;border:1px solid var(--border);min-width:260px}
+  .search-wrap input{background:transparent;border:0;outline:none;color:var(--text);width:260px;font-size:14px}
+  /* Search Results sizing */
+  .results{display:grid;gap:6px;padding:8px 12px;justify-items:center}
+  .results .result-item{width: calc(100% - 18px); max-width: 240px;}
+  /* Modal */
+  .modal-backdrop{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:100}
+  .modal{width:min(720px,94vw);background:#0f1621;border:1px solid var(--border);border-radius:12px;box-shadow:0 20px 60px #000a}
+  .modal .head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);color:var(--muted)}
+  .modal .body{padding:12px;display:grid;gap:12px}
+  .dropzone{border:2px dashed #2b3b55;border-radius:12px;padding:18px;text-align:center;color:var(--muted);background:#0b1420}
+  .dropzone.dragover{border-color:var(--accent2);background:#0b142055;color:#cfefff}
+  .paste-area{width:100%;min-height:140px;background:#0b1420;border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+  .right-controls .seg{display:inline-flex;align-items:center;gap:6px;background:#0d1522;border:1px solid var(--border);border-radius:10px;padding:6px 8px;color:var(--muted)}
+  .right-controls .seg label{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+  .right-controls .seg input{accent-color:var(--accent)}
+  /* Inline editor */
+  .pill .edit-btn{margin-left:8px}
+  .inline-edit{display:flex;align-items:center;gap:6px;margin-top:6px}
+  .inline-edit input,.inline-edit select{background:#0b1420;border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 8px;font-family:ui-monospace,Menlo,Consolas,monospace;min-width:140px}
+  .inline-edit .actions{display:flex;gap:6px}
+
+  .layout{display:grid;grid-template-columns:280px 1fr;height:calc(100% - 64px)}
+  .sidebar{
+    border-right:1px solid var(--border);
+    background:linear-gradient(180deg,#0f1621,#0b1119);
+    min-width:220px;
+    overflow:auto;
+    overflow-x:hidden; /* prevent horizontal bleed */
+  }
+  .pane-title{padding:10px 14px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--border);position:sticky;top:0;background:#0f1621f2;backdrop-filter:blur(6px)}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}
+  .stat{background:#0c1420;border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;color:var(--muted)}
+  .stat .num{font-weight:800;font-size:16px;color:var(--text)}
+  .legend{padding:8px 12px;display:grid;gap:6px;color:var(--muted);font-size:12px}
+  .legend .item{display:flex;align-items:center;gap:8px}
+  .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+  .dot.object{background:#275284}.dot.array{background:#357a38}.dot.value{background:#8156c5}.dot.key{background:#9fb0c3}
+  .pane{padding:8px 12px;display:grid;gap:8px}
+  .results{
+    display:grid;gap:8px;
+    padding:8px 10px 12px 10px;
+    justify-items:center;
+  }
+  .result-item{
+    display:grid;gap:6px;
+    padding:10px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:#0c1420;cursor:pointer;
+    width: calc(100% - 22px); /* narrower than pane padding */
+    max-width: 240px;
+    box-sizing:border-box;
+  }
+  .result-item:hover{background:#111a28}
+  .result-item .kv{
+    display:flex;gap:8px;align-items:center;
+    font-size:12px;color:#c5d3e3;line-height:1.35;
+    overflow:hidden;
+  }
+  .result-item .kv > span:first-child{
+    white-space:nowrap; text-overflow:ellipsis; overflow:hidden; max-width: 60%;
+  }
+  .result-item .value-preview{
+    color:#c5d3e3; font-size:12px; line-height:1.35;
+    display:-webkit-box; line-clamp:2; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+    overflow:hidden; text-overflow:ellipsis; word-break:break-word;
+  }
+  .result-item .path{
+    color:#9fb0c3;font-size:11px;word-break:break-word;opacity:.9;
+  }
+  .pill-badge{font-size:10px;padding:2px 6px;border-radius:999px;border:1px solid var(--border);background:#0b1420;color:var(--muted)}
+  .footer{position:sticky;bottom:0;padding:8px 12px;font-size:12px;color:var(--muted);background:linear-gradient(180deg,transparent,#0b0f14 60%)}
+
+  /* Graph area */
+  .canvas-wrap{position:relative;overflow:auto;background:linear-gradient(180deg,#0b0f1400,#0b0f14)}
+  .canvas-inner { position: absolute; inset: 0; transform-origin: 0 0; }
+  svg#edges{position:absolute;inset:0;pointer-events:none}
+  .nodes-layer{position:absolute;inset:0}
+  .node{
+    position:absolute; min-width:120px; max-width:360px;
+    padding:8px 10px; border-radius:12px;
+    background:linear-gradient(180deg,var(--node),var(--node2));
+    border:1px solid var(--border); color:var(--text);
+    box-shadow:0 1px 0 #0006 inset, 0 10px 30px #0004;
+    cursor:default; user-select:none;
+    transform:translate(-9999px,-9999px);
+    transition: transform 260ms cubic-bezier(.2,.7,.2,1), opacity 180ms ease;
+  }
+  /* Focus (central) node */
+  .node.focus-center{
+    opacity: 1;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--node) 85%, transparent), color-mix(in srgb, var(--node2) 85%, transparent));
+  }
+  .node:hover{background:var(--nodeHover)}
+  /* Parent (context) node: more transparent to de-emphasize */
+  .node.focus-parent{
+    opacity: 0.6;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--node) 60%, transparent), color-mix(in srgb, var(--node2) 60%, transparent));
+  }
+  .node .hdr{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
+  .toggle{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;background:#0b1220;border:1px solid var(--border);color:var(--muted);cursor:pointer}
+  .toggle:hover{background:#132138;color:var(--text)}
+  .key{color:var(--muted);font-weight:600;letter-spacing:.2px}
+  .badge{font-size:11px;padding:2px 6px;border-radius:999px;border:1px solid var(--border);background:#0b1420;color:var(--muted)}
+  .type-object{border-color:#2d4d7a;color:#9ec6ff;background:#0c1b2d}
+  .type-array{border-color:#296141;color:#a8f3c8;background:#082117}
+  .type-string{border-color:#5c3f8c;color:#d9c2ff;background:#180d2a}
+  .type-number{border-color:#6d7a2d;color:#f1f5a8;background:#1f2308}
+  .type-boolean{border-color:#8a4c2a;color:#ffd3b3;background:#2a150b}
+  .type-null{border-color:#6b6b6b;color:#d7d7d7;background:#1a1a1a}
+
+  .pill{margin-top:6px;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .value{
+    font-family:ui-monospace,Menlo,Consolas,monospace;color:#dfe7f1;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px;display:inline-block;
+    vertical-align:bottom;
+  }
+  .value.string{color:#d3b8ff}.value.number{color:#f5f7a6}.value.boolean{color:#ffddba}.value.null{color:#ccc}
+
+  .highlight{outline:2px solid #8ad1ff55;outline-offset:2px}
+  .edge{stroke:var(--edge);stroke-width:1.2;fill:none}
+
+  /* Full-string popover */
+  .popover {
+    position: fixed; z-index: 50; max-width: min(800px, 90vw);
+    background: #0e1522; border: 1px solid var(--border); color: var(--text);
+    border-radius: 12px; padding: 12px; box-shadow: 0 20px 60px #0008;
+    font-family: ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .popover .pop-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;color:var(--muted);font-size:12px}
+  .popover .close{cursor:pointer;border:1px solid var(--border);padding:4px 8px;border-radius:8px;background:#0b1420}
+  .show-btn{
+    font-size:11px; padding:2px 6px; border-radius:8px; border:1px solid var(--border);
+    background:#0b1420; color:var(--muted); cursor:pointer;
+  }
+
+  @media (max-width:900px){.layout{grid-template-columns:1fr}.sidebar{display:none}}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logo"></div>
+        <div>
+          <div class="title">JSON Radial Graph</div>
+          <div class="subtitle">Visualize and edit JSON, with zoom, pan, search and more.</div>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="btn" id="openJsonDialog">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14.59 2.59 21 9v11a2 2 0 0 1-2 2h-5v-2h5V9h-5V4H5a1 1 0 0 0-1 1v7H2V5a3 3 0 0 1 3-3h9.59zM8 13l4 4 4-4h-3V7h-2v6H8z"/></svg>
+          <span>Open JSON</span>
+        </button>
+        <input class="file-input" id="fileHidden" type="file" accept=".json,application/json,text/json" />
+        <button class="btn" id="loadSample">Sample</button>
+        <button class="btn success" id="expandAll">Go to root</button>
+        <div class="search-wrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <input id="search" type="text" placeholder="Search keys or values… (press Enter)" />
+          <button class="btn small" id="clearSearchBtn" title="Clear search" style="display:none">Clear</button>
+        </div>
+      </div>
+      <div class="right-controls">
+        <div class="seg" title="Choose how edits are saved">
+          <label><input type="radio" name="saveMode" value="auto" checked /> Auto-save</label>
+          <label><input type="radio" name="saveMode" value="manual" /> Manual export</label>
+        </div>
+        <button class="btn small" id="exportJsonBtn" title="Download edited JSON">Export JSON</button>
+        <span id="fileName" class="file-name">No file loaded</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="pane-title">Tips</div>
+      <div class="pane">
+        <div class="results">
+          <div class="result-item">
+            Click to expand/collapse node
+          </div>
+          <div class="result-item">
+            Wheel to zoom, drag to move canvas
+          </div>
+        </div>
+      </div>
+      <div class="pane-title">Overview</div>
+      <div class="stats">
+        <div class="stat"><div class="num" id="statNodes">0</div><div>Nodes</div></div>
+        <div class="stat"><div class="num" id="statDepth">0</div><div>Depth</div></div>
+      </div>
+      <div class="pane-title">Legend</div>
+      <div class="legend">
+        <div class="item"><span class="dot object"></span> Object</div>
+        <div class="item"><span class="dot array"></span> Array</div>
+        <div class="item"><span class="dot value"></span> Primitive value</div>
+        <div class="item"><span class="dot key"></span> Key / Index</div>
+      </div>
+      <div class="pane-title">Search Results</div>
+      <div class="pane">
+        <div class="results" id="searchResults">
+          <!-- results populate here -->
+        </div>
+      </div>
+    </aside>
+
+    <main class="canvas-wrap" id="canvas">
+      <div class="canvas-inner" id="inner">
+        <svg id="edges"></svg>
+        <div class="nodes-layer" id="nodes"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Open JSON Modal -->
+  <div class="modal-backdrop" id="openModal">
+    <div class="modal">
+      <div class="head">
+        <div>Open JSON</div>
+        <button class="btn small" id="openClose">Close</button>
+      </div>
+      <div class="body">
+        <div style="min-width:220px;display:flex;align-items:flex-start;justify-content:flex-center">
+          <div class="seg" title="If enabled and supported, edits will auto-save back to the chosen file">
+            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="allowEdit" style="accent-color: var(--accent);" />
+              Allow edit (write access)
+            </label>
+          </div>
+        </div>
+        <div class="row">
+          <div class="dropzone" id="dropzone">
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:center;">
+              <div>Drag & drop a JSON file here</div>
+              <div>or</div>
+              <button class="btn small" id="chooseFileBtn">Choose file…</button>
+            </div>
+          </div>
+        </div>
+        <div class="row" style="align-items:flex-start">
+          <div style="flex:1;min-width:260px">
+            <div style="color:var(--muted);margin:6px 0 4px;">Paste JSON</div>
+            <textarea id="pasteJson" class="paste-area" placeholder='Paste JSON text here'></textarea>
+          </div>
+        </div>
+        <div class="row" style="justify-content:flex-end">
+          <button class="btn" id="openCancel">Cancel</button>
+          <button class="btn primary" id="openLoad">Load</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+ <script>
+ (() => {
+  // Data model
+  const isArray = Array.isArray;
+  const isObject = v => v && typeof v === 'object' && !Array.isArray(v);
+  function typeOf(v){ if (v===null) return 'null'; if (isArray(v)) return 'array'; if (isObject(v)) return 'object'; return typeof v; }
+  function prettyValue(v){
+    const t=typeOf(v);
+    if (t==='string') return JSON.stringify(v);
+    if (t==='number'||t==='boolean') return String(v);
+    if (t==='null') return 'null';
+    if (t==='array') return `Array(${v.length})`;
+    if (t==='object') return `Object(${Object.keys(v).length})`;
+    return String(v);
+  }
+  let idCounter=1;
+  function buildModel(value, key='', path='$'){
+    const id=idCounter++;
+    const t=typeOf(value);
+    const node={ id, key, type:t, path, value:null, children:null, parent:null };
+    if (t==='object'){
+      node.children = Object.keys(value).map(k=>{ const ch=buildModel(value[k], k, path+'.'+k); ch.parent=id; return ch; });
+    } else if (t==='array'){
+      node.children = value.map((v,i)=>{ const ch=buildModel(v, String(i), path+'['+i+']'); ch.parent=id; return ch; });
+    } else {
+      node.value = value;
+    }
+    return node;
+  }
+  function computeStats(node, depth=1, st={total:0,depth:0}){
+    st.total++; st.depth=Math.max(st.depth, depth);
+    if (node.children) for (const c of node.children) computeStats(c, depth+1, st);
+    return st;
+  }
+
+  // Elements
+  const canvas = document.getElementById('canvas');
+  const inner = document.getElementById('inner');
+  const edgesSvg = document.getElementById('edges');
+  const nodesLayer = document.getElementById('nodes');
+  const hiddenFileInput = document.getElementById('fileHidden');
+  const resultsEl = document.getElementById('searchResults');
+  const fileNameEl = document.getElementById('fileName');
+  const statNodes = document.getElementById('statNodes');
+  const statDepth = document.getElementById('statDepth');
+  const btnExpandAll = document.getElementById('expandAll');
+  const btnSample = document.getElementById('loadSample');
+  const searchEl = document.getElementById('search');
+  const clearSearchBtn = document.getElementById('clearSearchBtn');
+  function updateClearVisibility(){
+    if (!clearSearchBtn) return;
+    const hasText = (searchEl.value || '').trim().length > 0;
+    clearSearchBtn.style.display = hasText ? 'inline-flex' : 'none';
+  }
+
+  // Modal elements
+  const openModal = document.getElementById('openModal');
+  const openJsonDialogBtn = document.getElementById('openJsonDialog');
+  const openCloseBtn = document.getElementById('openClose');
+  const openCancelBtn = document.getElementById('openCancel');
+  const openLoadBtn = document.getElementById('openLoad');
+  const dropzone = document.getElementById('dropzone');
+  const chooseFileBtn = document.getElementById('chooseFileBtn');
+  const pasteJson = document.getElementById('pasteJson');
+  // late-bind allowEdit after modal is shown to ensure element exists
+  function getAllowEditChk(){ return document.getElementById('allowEdit'); }
+
+  // Save/Export controls
+  const exportBtn = document.getElementById('exportJsonBtn');
+  const saveModeInputs = Array.from(document.querySelectorAll('input[name="saveMode"]'));
+
+  // State
+  let model=null;
+  const expanded = new Set();
+  const nodesMap = new Map(); // id -> DOM
+  const pos = new Map();      // id -> {x,y}
+  const size = new Map();     // id -> {w,h}
+  let stats={totalNodes:0, depth:0};
+  let searchQuery='';
+  // Focus mode: which node is currently centered (defaults to root on load)
+  let focusId = null;
+
+  // Save mode state
+  let saveMode = 'auto'; // 'auto' | 'manual'
+  let originalFileHandle = null; // FileSystemFileHandle when using picker (Chromium)
+  let originalFileName = null;
+  let lastJsonText = ''; // keep latest serialized JSON to write quickly
+
+  // Zoom/Pan
+  let zoom = 1, panX = 0, panY = 0;
+
+  function nodeKeyLabel(n){
+    if (n.key==='') return '(root)';
+    return /^[0-9]+$/.test(n.key)? `[${n.key}]` : n.key;
+  }
+  function typeBadge(n){
+    if (n.type==='array') return { text:`array[${(n.children||[]).length}]`, cls:'type-array' };
+    return { text:n.type, cls:'type-'+n.type };
+  }
+
+  // Build/ensure DOM node
+  function ensureNodeEl(n){
+    if (nodesMap.has(n.id)) return nodesMap.get(n.id);
+    const el = document.createElement('div');
+    el.className='node';
+    el.dataset.id = n.id;
+
+    const hdr = document.createElement('div'); hdr.className='hdr';
+    const toggle = document.createElement('div'); toggle.className='toggle';
+    toggle.innerHTML = expanded.has(n.id) ? svg('down') : svg('right');
+    toggle.title='Toggle';
+    // Keep chevron clickable but do not block node-wide clicks
+    toggle.addEventListener('click', (e)=>{ e.stopPropagation(); toggleNode(n.id, e.shiftKey); });
+    hdr.appendChild(toggle);
+
+    const k = document.createElement('div'); k.className='key'; k.textContent=nodeKeyLabel(n);
+    hdr.appendChild(k);
+
+    const badgeInfo = typeBadge(n);
+    const badge = document.createElement('div'); badge.className='badge '+badgeInfo.cls; badge.textContent=badgeInfo.text;
+    hdr.appendChild(badge);
+
+    el.appendChild(hdr);
+
+    if (n.type!=='object' && n.type!=='array'){
+      const pill = document.createElement('div');
+      pill.className='pill';
+      const v = document.createElement('span');
+      v.className='value '+n.type;
+      v.textContent = prettyValue(n.value); // ellipsis via CSS
+      pill.appendChild(v);
+
+      // inline edit button
+      const editBtn = document.createElement('button');
+      editBtn.className='btn small edit-btn';
+      editBtn.textContent='Edit';
+      editBtn.title='Edit value';
+      pill.appendChild(editBtn);
+
+      if (n.type==='string') {
+        const btn = document.createElement('button');
+        btn.className='show-btn';
+        btn.textContent='show';
+        btn.title='Show full string';
+        btn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          openStringPopover(n, btn);
+        });
+        pill.appendChild(btn);
+      }
+
+      // Inline editor (hidden until Edit)
+      const editor = document.createElement('div');
+      editor.className='inline-edit';
+      editor.style.display='none';
+
+      let inputEl;
+      if (n.type==='boolean'){
+        inputEl = document.createElement('select');
+        const o1 = document.createElement('option'); o1.value='true'; o1.textContent='true';
+        const o2 = document.createElement('option'); o2.value='false'; o2.textContent='false';
+        inputEl.appendChild(o1); inputEl.appendChild(o2);
+        inputEl.value = String(!!n.value);
+      } else if (n.type==='null'){
+        inputEl = document.createElement('select');
+        const o0 = document.createElement('option'); o0.value='null'; o0.textContent='null';
+        const o1 = document.createElement('option'); o1.value='value'; o1.textContent='convert to value';
+        inputEl.appendChild(o0); inputEl.appendChild(o1);
+        inputEl.value = 'null';
+      } else {
+        inputEl = document.createElement('input');
+        inputEl.type = 'text';
+        inputEl.value = n.type === 'string' ? n.value : String(n.value);
+      }
+      editor.appendChild(inputEl);
+
+      const actions = document.createElement('div');
+      actions.className='actions';
+      const saveBtn = document.createElement('button'); saveBtn.className='btn small'; saveBtn.textContent='Save';
+      const cancelBtn = document.createElement('button'); cancelBtn.className='btn small'; cancelBtn.textContent='Cancel';
+      actions.appendChild(saveBtn); actions.appendChild(cancelBtn);
+      editor.appendChild(actions);
+
+      pill.appendChild(editor);
+      el.appendChild(pill);
+
+      function openEditor(){ editor.style.display='flex'; editBtn.style.display='none'; }
+      function closeEditor(){ editor.style.display='none'; editBtn.style.display='inline-flex'; resetField(); }
+      function resetField(){
+        if (n.type==='boolean'){ inputEl.value = String(!!n.value); }
+        else if (n.type==='null'){ inputEl.value = 'null'; }
+        else { inputEl.value = n.type === 'string' ? n.value : String(n.value); }
+      }
+
+      editBtn.addEventListener('click', (e)=>{ e.stopPropagation(); openEditor(); });
+      cancelBtn.addEventListener('click', (e)=>{ e.stopPropagation(); closeEditor(); });
+
+      saveBtn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        let newVal;
+        let newType = n.type;
+        if (n.type==='boolean'){
+          newVal = inputEl.value === 'true';
+        } else if (n.type==='null'){
+          if (inputEl.value==='null'){ newVal = null; }
+          else { newVal = ''; newType='string'; }
+        } else if (n.type==='number'){
+          const parsed = Number(inputEl.value.trim());
+          if (!Number.isFinite(parsed)){ alert('Invalid number'); return; }
+          newVal = parsed;
+        } else if (n.type==='string'){
+          newVal = inputEl.value;
+        } else {
+          newVal = inputEl.value;
+        }
+
+        // Update underlying JSON via path (this also rebuilds model and serializes)
+        applyValueAtPath(n.path, newVal, newType);
+
+        // Update UI
+        v.textContent = prettyValue(newVal);
+        // Update node meta
+        n.value = newVal;
+        n.type = newType || typeOf(newVal);
+
+        closeEditor();
+
+        // Rerender to update stats / badges if type changed
+        layoutAndRender(true);
+
+        // Attempt auto save to original file if enabled
+        saveBackToOriginalIfAuto();
+      });
+    }
+
+    // Make the whole node clickable, including header, key, and badge.
+    // Only exclude clicks on the explicit "show" button and the toggle chevron itself.
+    el.addEventListener('click', (e)=>{
+      const target = e.target;
+      const isShowBtn = target && (target.classList && target.classList.contains('show-btn'));
+      const isToggle = target && (target.classList && target.classList.contains('toggle'));
+      if (isShowBtn || isToggle) return; // handled separately
+      toggleNode(n.id, e.shiftKey);
+    });
+
+    // Also allow clicking the badge itself to trigger toggle/focus
+    const badgeEl = el.querySelector('.badge');
+    if (badgeEl){
+      badgeEl.style.cursor = 'pointer';
+      badgeEl.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        toggleNode(n.id, e.shiftKey);
+      });
+    }
+
+    nodesLayer.appendChild(el);
+    nodesMap.set(n.id, el);
+
+    // measure
+    const r = el.getBoundingClientRect();
+    size.set(n.id, { w:r.width, h:r.height });
+
+    return el;
+  }
+
+  function openStringPopover(n, anchorBtn){
+    const pop = document.createElement('div');
+    pop.className='popover';
+    const head = document.createElement('div');
+    head.className='pop-head';
+    head.innerHTML = `<span>${n.path}</span>`;
+    const close = document.createElement('button'); close.className='close'; close.textContent='Close';
+    close.addEventListener('click', ()=> pop.remove());
+    head.appendChild(close);
+    const pre = document.createElement('div');
+    pre.textContent = n.value; // raw value (no quotes)
+    pop.appendChild(head); pop.appendChild(pre);
+    document.body.appendChild(pop);
+
+    // Position near the button
+    const r = anchorBtn.getBoundingClientRect();
+    const pad = 8;
+    const px = Math.min(window.innerWidth - pop.offsetWidth - pad, Math.max(pad, r.left));
+    const py = Math.min(window.innerHeight - pop.offsetHeight - pad, Math.max(pad, r.bottom + 6));
+    pop.style.left = px + 'px';
+    pop.style.top = py + 'px';
+  }
+
+  function svg(name){
+    if (name==='right') return '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 6l6 6-6 6"/></svg>';
+    if (name==='down') return '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 9l6 6 6-6"/></svg>';
+    if (name==='left') return '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15 6l-6 6 6 6"/></svg>';
+    return '';
+  }
+
+  function findById(n, id){
+    if (!n) return null;
+    if (n.id===id) return n;
+    if (n.children) for (const c of n.children){ const r=findById(c,id); if (r) return r; }
+    return null;
+  }
+
+  // Click behavior:
+  // - If node has children and is not focused -> set focus to it (becomes center)
+  // - If node is focused and not root -> return focus to its parent (collapses back)
+  // - Primitive nodes: no focus change; just flash highlight
+  function toggleNode(id, recursive=false){
+    const n = findById(model,id); if(!n) return;
+
+    // Primitive value: just flash
+    if (!n.children || n.children.length===0){
+      const el = nodesMap.get(id); if (el){ el.classList.add('highlight'); setTimeout(()=>el.classList.remove('highlight'), 300); }
+      return;
+    }
+
+    // If clicked node is currently focused and it's not root -> go back to parent
+    if (focusId === id && n.parent != null){
+      focusId = n.parent;
+    } else {
+      // Otherwise, focus this node
+      focusId = id;
+    }
+
+    // Expanded set: only keep the focus path and its direct children visible
+    expanded.clear();
+    // Ensure focus node is expanded so its children show
+    expanded.add(focusId);
+    // Also expand ancestors up to root so edge path can be drawn along the route
+    let p = findById(model, findById(model, focusId)?.parent ?? null);
+    while(p){
+      expanded.add(p.id);
+      if (p.parent == null) break;
+      p = findById(model, p.parent);
+    }
+
+    layoutAndRender(true);
+    const el = nodesMap.get(id); if (el){ el.classList.add('highlight'); setTimeout(()=>el.classList.remove('highlight'), 300); }
+  }
+
+  function collapseSubtree(id){
+    const node = findById(model, id); if (!node) return;
+    const q=[node];
+    while(q.length){
+      const cur=q.shift();
+      expanded.delete(cur.id);
+      if (cur.children) for (const c of cur.children) q.push(c);
+    }
+  }
+
+  // Visible nodes
+  function visibleSet(){
+    const keep = new Set();
+    function collect(n){
+      keep.add(n.id);
+      if ((n.type==='object'||n.type==='array') && expanded.has(n.id) && n.children){
+        for (const ch of n.children){ keep.add(ch.id); collect(ch); }
+      }
+    }
+    collect(model);
+    return keep;
+  }
+
+  // Focus-centric layout:
+  // - Center the focused node.
+  // - Arrange its children on an outer ring.
+  // - Optionally show its parent on an inner ring for context.
+  function layoutRadial(keep){
+    const rect = canvas.getBoundingClientRect();
+    const cx = rect.width/2, cy = rect.height/2;
+
+    // Radii
+    const parentRingR = 200;
+    const childRingR = 420;
+    const startAngle = -Math.PI/2; // top
+
+    // Resolve focus node
+    const focus = findById(model, focusId || model.id) || model;
+
+    // Ensure DOM for kept nodes
+    function ensureVisible(n){
+      ensureNodeEl(n);
+      if ((n.type==='object'||n.type==='array') && n.children){
+        for (const ch of n.children) if (keep.has(ch.id)) ensureNodeEl(ch);
+      }
+    }
+
+    // Place focus at center
+    pos.set(focus.id, { x: cx, y: cy });
+    ensureVisible(focus);
+    // Mark focus node for styling (semi-transparent)
+    const focusEl = nodesMap.get(focus.id);
+    if (focusEl){
+      focusEl.classList.add('focus-center');
+    }
+
+    // Place parent (if any) roughly opposite of densest child arc (default: bottom)
+    let parentNode = null;
+    if (focus.parent != null){
+      parentNode = findById(model, focus.parent);
+      if (parentNode && keep.has(parentNode.id)){
+        const angle = Math.PI/2; // bottom
+        const px = cx + parentRingR * Math.cos(angle);
+        const py = cy + parentRingR * Math.sin(angle);
+        pos.set(parentNode.id, { x: px, y: py });
+        ensureVisible(parentNode);
+        // Mark as focus-parent for styling
+        const pEl = nodesMap.get(parentNode.id);
+        if (pEl){ pEl.classList.add('focus-parent'); }
+      }
+    }
+
+    // Place children evenly on ring
+    const children = (focus.children || []).filter(ch => keep.has(ch.id));
+    const m = children.length;
+    if (m > 0){
+      for (let i=0;i<m;i++){
+        const theta = startAngle + i * (2*Math.PI/m);
+        const x = cx + childRingR * Math.cos(theta);
+        const y = cy + childRingR * Math.sin(theta);
+        const node = children[i];
+        pos.set(node.id, { x, y });
+        ensureVisible(node);
+      }
+    }
+
+    // Update toggle icons for visible nodes
+    for (const id of keep){
+      const el = nodesMap.get(id);
+      const n = findById(model, id);
+      if (!el || !n) continue;
+      const tgl = el.querySelector('.toggle');
+      if (tgl){
+        if (n.type==='object' || n.type==='array'){
+          // If this is the current parent-of-focus, show a left arrow to indicate "back"
+          const focusedNode = findById(model, focusId || model.id) || model;
+          const parentOfFocused = focusedNode.parent != null ? findById(model, focusedNode.parent) : null;
+          if (parentOfFocused && parentOfFocused.id === n.id){
+            tgl.innerHTML = svg('left');
+          } else {
+            tgl.innerHTML = expanded.has(n.id) ? svg('down') : svg('right');
+          }
+        } else {
+          tgl.innerHTML = '';
+        }
+      }
+    }
+
+    // Make the parent-of-focus act as an explicit "back" when clicking anywhere on it
+    (function wireParentBack(){
+      const focusedNode = findById(model, focusId || model.id) || model;
+      const parentOfFocused = focusedNode.parent != null ? findById(model, focusedNode.parent) : null;
+      if (!parentOfFocused) return;
+      const parentEl = nodesMap.get(parentOfFocused.id);
+      if (!parentEl) return;
+      if (!parentEl.dataset.backHandlerAttached){
+        parentEl.addEventListener('click', (e)=>{
+          // If user clicks the parent card, go back (focus parent)
+          e.stopPropagation();
+          focusId = parentOfFocused.id;
+          // Keep route visible: expand focused and its ancestors
+          expanded.clear();
+          expanded.add(focusId);
+          let p = findById(model, parentOfFocused.parent != null ? parentOfFocused.parent : null);
+          while (p){
+            expanded.add(p.id);
+            if (p.parent == null) break;
+            p = findById(model, p.parent);
+          }
+          layoutAndRender(true);
+        });
+        parentEl.dataset.backHandlerAttached = '1';
+      }
+    })();
+
+    // Make the parent-of-focus act as an explicit "back" when clicking anywhere on it
+    (function wireParentBack(){
+      const focusedNode = findById(model, focusId || model.id) || model;
+      const parentOfFocused = focusedNode.parent != null ? findById(model, focusedNode.parent) : null;
+      if (!parentOfFocused) return;
+      const parentEl = nodesMap.get(parentOfFocused.id);
+      if (!parentEl) return;
+      if (!parentEl.dataset.backHandlerAttached){
+        parentEl.addEventListener('click', (e)=>{
+          // Clicking the parent card navigates back (focus parent)
+          e.stopPropagation();
+          focusId = parentOfFocused.id;
+          // Keep route visible: expand focused and its ancestors
+          expanded.clear();
+          expanded.add(focusId);
+          let p = parentOfFocused.parent != null ? findById(model, parentOfFocused.parent) : null;
+          while (p){
+            expanded.add(p.id);
+            if (p.parent == null) break;
+            p = findById(model, p.parent);
+          }
+          layoutAndRender(true);
+        });
+        parentEl.dataset.backHandlerAttached = '1';
+      }
+    })();
+
+    // Draw edges: parent->focus and focus->children
+    const paths = [];
+    function qcurve(a, b){
+      const mx = (a.x + b.x)/2, my = (a.y + b.y)/2;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const len = Math.hypot(dx,dy)||1;
+      const nx = -dy/len, ny = dx/len;
+      const off = Math.min(40, len*0.18);
+      const cx1 = mx + nx*off, cy1 = my + ny*off;
+      return `M${a.x},${a.y} Q${cx1},${cy1} ${b.x},${b.y}`;
+    }
+    if (parentNode && pos.has(parentNode.id) && pos.has(focus.id)){
+      const a = pos.get(parentNode.id), b = pos.get(focus.id);
+      paths.push(`<path class="edge" d="${qcurve(a,b)}" />`);
+    }
+    for (const ch of children){
+      if (!pos.has(ch.id)) continue;
+      const a = pos.get(focus.id), b = pos.get(ch.id);
+      paths.push(`<path class="edge" d="${qcurve(a,b)}" />`);
+    }
+
+    edgesSvg.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
+    edgesSvg.setAttribute('width', String(rect.width));
+    edgesSvg.setAttribute('height', String(rect.height));
+    edgesSvg.innerHTML = paths.join('');
+
+    // Place nodes in DOM
+    for (const [id, p] of pos){
+      if (!keep.has(id)) continue;
+      const el = nodesMap.get(id); if (!el) continue;
+      const r = el.getBoundingClientRect();
+      const s = { w: r.width || 140, h: r.height || 50 };
+      size.set(id, s);
+      const tx = Math.round(p.x - s.w/2), ty = Math.round(p.y - s.h/2);
+      el.style.transition = 'transform 260ms cubic-bezier(.2,.7,.2,1)';
+      el.style.transform = `translate(${tx}px, ${ty}px)`;
+    }
+
+    // IMPORTANT: Do NOT apply transform here; layoutAndRender will apply once per frame
+    // This avoids multiple conflicting transforms per render.
+    // Stats
+    statNodes.textContent = String(stats.totalNodes||0);
+    statDepth.textContent = String(stats.depth||0);
+  }
+
+  function layoutAndRender(animate=false){
+    if (!model) {
+      edgesSvg.innerHTML = '';
+      nodesLayer.innerHTML = '';
+      nodesMap.clear(); pos.clear(); size.clear();
+      return;
+    }
+    // Recompute visible set based on focus: keep focus, its children, and its parent
+    const keep = new Set();
+    function addNode(n){
+      if (!n) return;
+      keep.add(n.id);
+    }
+    const f = findById(model, focusId || model.id) || model;
+    addNode(f);
+    if (f.children) for (const c of f.children) addNode(c);
+    if (f.parent!=null) addNode(findById(model, f.parent));
+
+    // Remove nodes no longer visible
+    for (const id of [...nodesMap.keys()]){
+      if (!keep.has(id)) {
+        nodesMap.get(id)?.remove();
+        nodesMap.delete(id);
+        pos.delete(id);
+        size.delete(id);
+      }
+    }
+    // Ensure only the correct nodes have focus styles
+    const focused = (findById(model, focusId || model.id) || model);
+    const parentOfFocused = focused.parent != null ? findById(model, focused.parent) : null;
+    for (const [id, el] of nodesMap){
+      // Focus (center) styling off now (per latest request)
+      el.classList.remove('focus-center');
+      // Parent styling only for the current parent node
+      if (parentOfFocused && String(parentOfFocused.id) === String(id)) el.classList.add('focus-parent');
+      else el.classList.remove('focus-parent');
+    }
+
+    // Ensure DOM for all visible
+    (function ensureAll(n){
+      ensureNodeEl(n);
+      if ((n.type==='object'||n.type==='array') && expanded.has(n.id) && n.children)
+        for (const ch of n.children) ensureAll(ch);
+    })(model);
+
+    // Layout
+    const prev = new Map(pos);
+    layoutRadial(keep);
+
+    // Place nodes
+    for (const [id, p] of pos){
+      const el = nodesMap.get(id); if (!el) continue;
+      // re-measure (just in case)
+      const r = el.getBoundingClientRect();
+      const s = { w: r.width || 140, h: r.height || 50 };
+      size.set(id, s);
+      const tx = Math.round(p.x - s.w/2), ty = Math.round(p.y - s.h/2);
+      if (!animate || !prev.has(id)) {
+        el.style.transition = 'transform 260ms cubic-bezier(.2,.7,.2,1)';
+        el.style.transform = `translate(${tx}px, ${ty}px)`;
+      } else {
+        el.style.transform = `translate(${tx}px, ${ty}px)`;
+      }
+    }
+
+    // Edges are drawn in layoutRadial based on the focused keep-set
+
+    // Apply zoom/pan ONCE per render pass
+    inner.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+
+    // Stats
+    statNodes.textContent = String(stats.totalNodes||0);
+    statDepth.textContent = String(stats.depth||0);
+  }
+
+  // Search logic (Enter to apply)
+  const matchCache=new Map();
+  function matchesQuery(n){
+    if (!searchQuery) return false;
+    const key=n.id+'|'+searchQuery;
+    if (matchCache.has(key)) return matchCache.get(key);
+    const q=searchQuery.toLowerCase();
+    let m=false;
+    // key
+    if (n.key && n.key.toLowerCase().includes(q)) m=true;
+    // primitive value
+    if (!m && (n.value!==null && n.value!==undefined)) {
+      const pv = String(n.value).toLowerCase();
+      if (pv.includes(q)) m = true;
+    }
+    // type/summary for containers
+    if (!m){
+      const label = n.type==='array' ? `array(${(n.children||[]).length})` : n.type==='object' ? `object(${(n.children||[]).length})` : n.type;
+      if (String(label).toLowerCase().includes(q)) m = true;
+    }
+    matchCache.set(key,m); return m;
+  }
+  function hasMatchingDesc(n){
+    if (!searchQuery) return false;
+    const key='d|'+n.id+'|'+searchQuery;
+    if (matchCache.has(key)) return matchCache.get(key);
+    let m=false;
+    if (n.children) for (const c of n.children) { if (matchesQuery(c) || hasMatchingDesc(c)) { m=true; break; } }
+    matchCache.set(key,m); return m;
+  }
+
+  // Build flat list of matches with metadata for results sidebar
+  function collectMatches(){
+    const out=[];
+    if (!model || !searchQuery) return out;
+    const q = searchQuery.toLowerCase();
+    (function walk(n){
+      if (matchesQuery(n)){
+        out.push({
+          id: n.id,
+          path: n.path,
+          key: n.key,
+          type: n.type,
+          valPreview: n.value!==undefined && n.value!==null ? String(n.value).slice(0,120) : (n.type==='array'||n.type==='object' ? '' : ''),
+        });
+      }
+      if (n.children) for (const c of n.children) walk(c);
+    })(model);
+    return out;
+  }
+
+  function renderSearchResults(list){
+    if (!resultsEl) return;
+    resultsEl.innerHTML = '';
+    if (!list || list.length===0){
+      // show small empty hint
+      const hint = document.createElement('div');
+      hint.style.color='var(--muted)';
+      hint.style.fontSize='12px';
+      hint.style.padding='6px 2px';
+      hint.textContent = searchQuery ? 'No results' : 'Type a search and press Enter';
+      resultsEl.appendChild(hint);
+      return;
+    }
+    // Limit render to avoid very long DOMs; still allow navigation of many results
+    const MAX = 300;
+    const trimmed = list.slice(0, MAX);
+    for (const it of trimmed){
+      const div = document.createElement('div');
+      div.className = 'result-item';
+      const head = document.createElement('div');
+      head.className = 'kv';
+      const keySpan = document.createElement('span');
+      keySpan.textContent = it.key ? it.key : '(root)';
+      const typeBadgeEl = document.createElement('span');
+      typeBadgeEl.className = 'pill-badge';
+      typeBadgeEl.textContent = it.type;
+      head.appendChild(keySpan);
+      head.appendChild(typeBadgeEl);
+      div.appendChild(head);
+
+      if (it.valPreview){
+        const valDiv = document.createElement('div');
+        valDiv.className = 'value-preview';
+        valDiv.textContent = it.valPreview;
+        div.appendChild(valDiv);
+      }
+
+      const pathEl = document.createElement('div');
+      pathEl.className = 'path';
+      pathEl.textContent = it.path;
+      div.appendChild(pathEl);
+      div.addEventListener('click', ()=>{
+        // Focus this node and expand ancestors so it's visible
+        const nid = findNodeIdByPath(model, it.path);
+        if (!nid) return;
+        focusId = nid;
+        // Expand all ancestors
+        let cur = findById(model, nid);
+        while (cur && cur.parent!=null){
+          const par = findById(model, cur.parent);
+          if (par) expanded.add(par.id);
+          cur = par;
+        }
+        // Also ensure the focused one is expanded if container
+        expanded.add(nid);
+        layoutAndRender(true);
+        // Flash highlight if DOM exists
+        const el = nodesMap.get(nid);
+        if (el){ el.classList.add('highlight'); setTimeout(()=>el.classList.remove('highlight'), 300); }
+      });
+      resultsEl.appendChild(div);
+    }
+    if (list.length > MAX){
+      const more = document.createElement('div');
+      more.style.color='var(--muted)';
+      more.style.fontSize='11px';
+      more.textContent = `Showing ${MAX} of ${list.length} results`;
+      resultsEl.appendChild(more);
+    }
+  }
+
+  function applySearch(){
+    matchCache.clear();
+    if (!model) { if (resultsEl) resultsEl.innerHTML=''; return; }
+
+    // Expand ancestors for all matches so they are reachable
+    const toOpen=new Set();
+    (function walk(n){
+      const matched = matchesQuery(n) || hasMatchingDesc(n);
+      if (matched && n.parent!=null){
+        let p = findById(model, n.parent);
+        while(p){ toOpen.add(p.id); if (p.parent==null) break; p = findById(model, p.parent); }
+      }
+      if (n.children) for (const c of n.children) walk(c);
+    })(model);
+    for (const id of toOpen) expanded.add(id);
+
+    // Render graph side
+    layoutAndRender(true);
+
+    // Highlight matches
+    for (const [id, el] of nodesMap){
+      const node = findById(model, id);
+      if (!node) continue;
+      if (matchesQuery(node)) el.classList.add('highlight');
+      else el.classList.remove('highlight');
+    }
+
+    // Build and render results list
+    const matches = collectMatches();
+    renderSearchResults(matches);
+  }
+
+  // Load (hidden input used by modal "Choose file…")
+  hiddenFileInput.addEventListener('change', async (e)=>{
+    const file=e.target.files?.[0]; if(!file) return;
+    originalFileName = file.name;
+    fileNameEl.textContent=file.name;
+    const text=await file.text();
+    tryLoad(text);
+    hideOpenModal();
+    // reset input so re-choosing same file works
+    hiddenFileInput.value='';
+  });
+
+  btnSample.addEventListener('click', ()=>{
+    const sample = {
+      about: {
+        title: "JSON Radial Graph — Sample about JSON and this app",
+        description: "This dataset demonstrates JSON concepts (objects, arrays, values) and showcases viewer features such as zoom/pan, search, inline editing, exporting, and focus navigation.",
+        version: 1,
+        tags: ["json", "viewer", "graph", "features"],
+        homepage: "https://www.json.org/json-en.html"
+      },
+      json_concepts: {
+        object: {
+          note: "An object is an unordered set of name/value pairs.",
+          example: { key: "value", number: 42, nested: { ok: true } }
+        },
+        array: {
+          note: "An array is an ordered collection of values.",
+          example: [1, "two", false, null, { k: "v" }, [3, 4, 5]]
+        },
+        values: [
+          { type: "string", value: "hello world" },
+          { type: "number", value: 123.456 },
+          { type: "boolean", value: true },
+          { type: "null", value: null },
+          { type: "object", value: { a: 1, b: 2 } },
+          { type: "array", value: [10, 20, 30] }
+        ],
+        edge_cases: {
+          empty_object: {},
+          empty_array: [],
+          long_string: "JSON stands for JavaScript Object Notation. It is a lightweight data-interchange format that is easy for humans to read and write, and easy for machines to parse and generate. ".repeat(4)
+        }
+      },
+      app_features: {
+        navigation: {
+          focus_mode: "Click an object/array node to focus it; click again to go back to its parent.",
+          go_to_root: "Use the 'Go to root' button to re-center on the root."
+        },
+        search: {
+          how: "Type a term and press Enter. Results appear in the sidebar; clicking a result focuses it.",
+          try_queries: ["title", "array", "export", "panel", "data[0].items[2]"]
+        },
+        editing: {
+          inline_edit: "Primitive values (string, number, boolean, null) can be edited inline.",
+          auto_save_modes: ["auto", "manual"],
+          note: "If allowed and supported, edits can auto-save back to the chosen file."
+        },
+        export: {
+          action: "Export JSON",
+          note: "Downloads the current edited JSON as a file."
+        },
+        legend: ["Object", "Array", "Primitive value", "Key / Index"]
+      },
+      datasets: [
+        {
+          id: "data",
+          title: "Hierarchical data showing arrays and objects",
+          items: [
+            {
+              id: 1,
+              name: "Alpha",
+              active: true,
+              metrics: { nodes: 120, depth: 4, coverage: 0.82 },
+              tags: ["alpha", "sample", "json"],
+              notes: null
+            },
+            {
+              id: 2,
+              name: "Beta",
+              active: false,
+              metrics: { nodes: 85, depth: 6, coverage: 0.64 },
+              tags: ["beta", "array"],
+              notes: "This entry has deeper nesting."
+            },
+            {
+              id: 3,
+              name: "Gamma",
+              active: true,
+              metrics: { nodes: 200, depth: 5, coverage: 0.91 },
+              tags: [],
+              notes: "Try editing this note inline."
+            }
+          ]
+        },
+        {
+          id: "matrix_examples",
+          title: "Numeric matrices for array-of-arrays rendering",
+          matrices: [
+            Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => Math.floor(Math.random()*10))),
+            Array.from({ length: 3 }, () => Array.from({ length: 7 }, () => Math.floor(Math.random()*20)))
+          ]
+        },
+        {
+          id: "logs",
+          title: "Event logs array",
+          events: Array.from({ length: 12 }, (_, i) => ({
+            ts: new Date(Date.now() - i * 3600_000).toISOString(),
+            level: ["info","warn","error"][i % 3],
+            message: i % 3 === 2 ? "Export triggered" : (i % 3 === 1 ? "Search updated" : "Canvas moved"),
+            context: { userId: (i % 5) + 1, session: `s-${(1000+i).toString(36)}` }
+          }))
+        }
+      ],
+      walkthrough: [
+        "Load this sample.",
+        "Click json_concepts to inspect examples.",
+        "Focus datasets[0] to see nested items.",
+        "Use the search box to find 'Gamma' or 'matrix'.",
+        "Edit a primitive value inline and export the JSON."
+      ]
+    };
+    fileNameEl.textContent='sample.json';
+    tryLoad(JSON.stringify(sample));
+  });
+
+  function tryLoad(text){
+    try{
+      const json = JSON.parse(text);
+      idCounter = 1;
+      nodesMap.clear(); pos.clear(); size.clear();
+      model = buildModel(json);
+
+      // Focus root by default
+      expanded.clear();
+      if (model.type==='object' || model.type==='array') expanded.add(model.id);
+      focusId = model.id;
+
+      // Compute stats and normalize keys for display
+      const st = computeStats(model);
+      stats = { totalNodes: st.total, depth: st.depth };
+      statNodes.textContent = String(stats.totalNodes);
+      statDepth.textContent = String(stats.depth);
+
+      nodesLayer.innerHTML = '';
+      zoom = 1; panX = 0; panY = 0;
+
+      // Ensure transform is reset before first render
+      inner.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+      layoutAndRender(false);
+
+      // Cache latest JSON text
+      try { lastJsonText = JSON.stringify(rebuildJson(model), null, 2); } catch {}
+    }catch(err){
+      alert('Failed to parse JSON: '+err.message);
+    }
+  }
+
+  // Navigation button: "Go to root"
+  // Restores focus to root and shows root with its immediate children
+  btnExpandAll.addEventListener('click', ()=>{
+    if (!model) return;
+    focusId = model.id;
+    expanded.clear();
+    if (model.type==='object' || model.type==='array') expanded.add(model.id);
+    layoutAndRender(true);
+  });
+
+  // Save mode toggles
+  saveModeInputs.forEach(r=>{
+    r.addEventListener('change', ()=>{
+      if (r.checked) saveMode = r.value;
+    });
+  });
+
+  // Export button
+  exportBtn.addEventListener('click', ()=>{
+    if (!model){ alert('Nothing to export'); return; }
+    const json = rebuildJson(model);
+    const text = JSON.stringify(json, null, 2);
+    lastJsonText = text;
+    const blob = new Blob([text], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = originalFileName ? originalFileName.replace(/\.json$/i,'') + '.json' : 'data.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+  });
+
+  // Search (Enter to apply)
+  searchEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      searchQuery = searchEl.value.trim();
+      applySearch();
+      updateClearVisibility();
+    }
+  });
+  // Show/hide clear on typing
+  searchEl.addEventListener('input', updateClearVisibility);
+  // Initialize state on load
+  updateClearVisibility();
+  if (clearSearchBtn){
+    clearSearchBtn.addEventListener('click', ()=>{
+      // reset query
+      searchQuery = '';
+      searchEl.value = '';
+      updateClearVisibility();
+      // clear highlights
+      for (const [id, el] of nodesMap){
+        el.classList.remove('highlight');
+      }
+      // collapse back to current focus scope (focus, its children, and its parent)
+      if (model){
+        const f = findById(model, focusId || model.id) || model;
+        expanded.clear();
+        // ensure parent path is visible
+        if (f.parent != null){
+          let p = findById(model, f.parent);
+          while (p){
+            expanded.add(p.id);
+            if (p.parent == null) break;
+            p = findById(model, p.parent);
+          }
+        }
+        // expand focus so its children are shown
+        expanded.add(f.id);
+        layoutAndRender(true);
+      }
+      // clear results list
+      if (resultsEl) {
+        resultsEl.innerHTML = '';
+        const hint = document.createElement('div');
+        hint.style.color='var(--muted)';
+        hint.style.fontSize='12px';
+        hint.style.padding='6px 2px';
+        hint.textContent = 'Type a search and press Enter';
+        resultsEl.appendChild(hint);
+      }
+    });
+  }
+
+  // Keep Ctrl/Cmd+F focusing the search box
+  document.addEventListener('keydown',(e)=>{
+    if (e.key==='f' && (e.ctrlKey||e.metaKey)){
+      e.preventDefault();
+      searchEl.focus();
+      searchEl.select();
+    }
+  });
+
+  // Zoom with wheel (cursor-centric) — triggers a render so edges/nodes stay crisp
+  canvas.addEventListener('wheel', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const delta = e.deltaY > 0 ? -1 : 1;
+    // Reduce zoom sensitivity (was 0.12). Lower value = finer steps.
+    const factor = 1 + (delta * 0.06);
+    const newZoom = Math.min(3, Math.max(0.2, zoom * factor));
+
+    // World coords before
+    const wx = (mx - panX) / zoom;
+    const wy = (my - panY) / zoom;
+
+    zoom = newZoom;
+
+    // Adjust pan so the point under cursor stays put
+    panX = mx - wx * zoom;
+    panY = my - wy * zoom;
+
+    // Re-render once with updated viewport
+    layoutAndRender(false);
+    e.preventDefault();
+  }, { passive: false });
+
+  // Pan with left-drag (on empty canvas), middle mouse, or Space+drag
+  let panning = false, psx = 0, psy = 0, startPanX = 0, startPanY = 0;
+  function startPan(e){
+    panning = true;
+    psx = e.clientX; psy = e.clientY;
+    startPanX = panX; startPanY = panY;
+    document.addEventListener('mousemove', onPanMove);
+    document.addEventListener('mouseup', endPan);
+    e.preventDefault();
+  }
+  function onPanMove(e){
+    if (!panning) return;
+    const dx = e.clientX - psx;
+    const dy = e.clientY - psy;
+    panX = startPanX + dx;
+    panY = startPanY + dy;
+    // Apply once per move without relayout for performance
+    inner.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+  }
+  function endPan(){
+    panning = false;
+    document.removeEventListener('mousemove', onPanMove);
+    document.removeEventListener('mouseup', endPan);
+  }
+  // Middle mouse always pans
+  canvas.addEventListener('mousedown', (e)=>{
+    if (e.button === 1) startPan(e);
+  });
+  // Space+left drag pans
+  let spaceDown = false;
+  document.addEventListener('keydown', (e)=>{ if (e.code === 'Space') { spaceDown = true; } });
+  document.addEventListener('keyup', (e)=>{ if (e.code === 'Space') { spaceDown = false; } });
+  canvas.addEventListener('mousedown', (e)=>{
+    if (spaceDown && e.button === 0) startPan(e);
+  });
+  // Left-drag on empty area (not on nodes) pans
+  canvas.addEventListener('mousedown', (e)=>{
+    if (e.button !== 0) return;
+    // If the target is inside a node, don't start canvas pan
+    const isInNode = e.target.closest && e.target.closest('.node');
+    if (!isInNode) startPan(e);
+  });
+
+  // Resize
+  const ro = new ResizeObserver(()=> layoutAndRender(false));
+  ro.observe(canvas);
+
+  // Initial hint
+  function emptyHint(){
+    const el=document.createElement('div');
+    el.className='node';
+    el.style.transform='translate(20px,20px)';
+    el.innerHTML = `<div style="color:var(--muted);display:flex;align-items:center;gap:10px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16l4-4h10a2 2 0 0 0 2-2V8l-6-6zM13 9V3.5L18.5 9H13z"/></svg>
+      Open a JSON file or load a sample to begin.
+    </div>`;
+    nodesLayer.appendChild(el);
+  }
+  emptyHint();
+
+  // ---- Modal logic ----
+  function showOpenModal(){ openModal.style.display='flex'; }
+  function hideOpenModal(){ openModal.style.display='none'; pasteJson.value=''; dropzone.classList.remove('dragover'); }
+
+  document.getElementById('openJsonDialog').addEventListener('click', ()=>{
+    // Always open the modal. The picker can be triggered from inside via "Choose file…" when Allow edit is on.
+    showOpenModal();
+  });
+  openCloseBtn.addEventListener('click', hideOpenModal);
+  openCancelBtn.addEventListener('click', hideOpenModal);
+
+  chooseFileBtn.addEventListener('click', async (e)=>{
+    const allowEditChk = getAllowEditChk();
+    // If Allow edit is enabled and API is supported, use the picker to obtain a writable handle
+    if (allowEditChk && allowEditChk.checked && window.showOpenFilePicker){
+      e.preventDefault();
+      try{
+        const [handle] = await window.showOpenFilePicker({
+          multiple:false,
+          types:[{ description:'JSON files', accept:{ 'application/json':['.json'], 'text/json':['.json'] } }]
+        });
+        if (!handle) return;
+        originalFileHandle = handle;
+        const file = await handle.getFile();
+        originalFileName = file.name;
+        fileNameEl.textContent = originalFileName;
+        const text = await file.text();
+        tryLoad(text);
+        hideOpenModal();
+        return;
+      }catch(err){
+        console.warn('Picker canceled or failed:', err);
+      }
+    }
+    // Fallback: regular input[type=file]
+    hiddenFileInput.click();
+  });
+
+  ;['dragenter','dragover'].forEach(evt=>{
+    dropzone.addEventListener(evt, (e)=>{ e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dragover'); });
+  });
+  ;['dragleave','drop'].forEach(evt=>{
+    dropzone.addEventListener(evt, (e)=>{ e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('dragover'); });
+  });
+  dropzone.addEventListener('drop', async (e)=>{
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    if (!/\.json$/i.test(file.name)) { alert('Please drop a .json file'); return; }
+    originalFileName = file.name;
+    const text = await file.text();
+    fileNameEl.textContent = file.name;
+    tryLoad(text);
+    hideOpenModal();
+  });
+
+  openLoadBtn.addEventListener('click', ()=>{
+    const text = pasteJson.value.trim();
+    if (!text){ alert('Paste JSON text or choose a file'); return; }
+    originalFileName = 'pasted.json';
+    fileNameEl.textContent = originalFileName;
+    tryLoad(text);
+    hideOpenModal();
+  });
+
+  // Open dialog keyboard escape
+  document.addEventListener('keydown', (e)=>{
+    if (openModal.style.display==='flex' && e.key==='Escape') hideOpenModal();
+  });
+
+  // ---- Mutation helpers (editing) ----
+  function applyValueAtPath(path, newVal, newType){
+    // Walk original JSON using the path syntax used in buildModel: $.a.b[0]
+    // First, reconstruct the full JSON object
+    const root = rebuildJson(model);
+
+    const tokens = parsePath(path); // ['$', 'a', 'b', 0]
+    if (!Array.isArray(tokens) || tokens.length < 2){
+      console.warn('applyValueAtPath: invalid path tokens for', path, tokens);
+      return;
+    }
+
+    // Navigate safely through the object, guarding against undefined
+    let cur = root;
+    for (let i = 1; i < tokens.length - 1; i++){
+      const key = tokens[i];
+      if (cur == null){
+        console.warn('applyValueAtPath: reached null/undefined at', key, 'for path', path);
+        return;
+      }
+      if (!(key in cur)){
+        console.warn('applyValueAtPath: key missing', key, 'in', cur, 'for path', path);
+        return;
+      }
+      cur = cur[key];
+    }
+
+    if (cur == null){
+      console.warn('applyValueAtPath: parent container is null/undefined for path', path);
+      return;
+    }
+
+    const lastKey = tokens[tokens.length - 1];
+    try{
+      cur[lastKey] = newVal;
+    }catch(err){
+      console.warn('applyValueAtPath: cannot set property', lastKey, 'on', cur, 'error:', err);
+      return;
+    }
+
+    // Rebuild model and preserve focus, viewport, and expanded state
+    const preservePath = path;
+    const zoomKeep = { z: zoom, x: panX, y: panY };
+
+    // Snapshot currently expanded node paths AND current focus path
+    const expandedPaths = new Set();
+    let focusPath = null;
+    if (model) {
+      // remember current focus node path (if any)
+      const curFocus = findById(model, focusId || (model && model.id));
+      focusPath = curFocus ? curFocus.path : null;
+
+      (function collectExpanded(n){
+        if (!n) return;
+        if (expanded.has(n.id)) expandedPaths.add(n.path);
+        if (n.children) for (const c of n.children) collectExpanded(c);
+      })(model);
+    }
+
+    const jsonText = JSON.stringify(root, null, 2);
+    lastJsonText = jsonText;
+
+    // Rebuild model
+    tryLoad(jsonText);
+
+    // Restore expanded set by mapping stored paths to new ids
+    const restored = new Set();
+    if (model) {
+      for (const p of expandedPaths) {
+        const nid = findNodeIdByPath(model, p);
+        if (nid != null) restored.add(nid);
+      }
+    }
+    // Replace expanded with restored set in one shot to avoid flicker
+    expanded.clear();
+    for (const id of restored) expanded.add(id);
+
+    // Preserve focus on the previously focused node if possible,
+    // otherwise try the edited node, else root
+    const focusByOldPath = (focusPath && findNodeIdByPath(model, focusPath)) || null;
+    const focusByEditedPath = findNodeIdByPath(model, preservePath) || null;
+    focusId = focusByOldPath || focusByEditedPath || (model ? model.id : null);
+
+    // Ensure the focused node's ancestors are expanded so siblings remain visible
+    if (focusId != null) {
+      let pnode = findById(model, focusId);
+      while (pnode && pnode.parent != null) {
+        const parent = findById(model, pnode.parent);
+        if (parent) expanded.add(parent.id);
+        pnode = parent;
+      }
+    }
+
+    // Render and restore viewport
+    layoutAndRender(true);
+    zoom = zoomKeep.z; panX = zoomKeep.x; panY = zoomKeep.y;
+    inner.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+  }
+
+  function parsePath(p){
+    // Supports:
+    // $.meta.tags[0]
+    // $[0].nombre_asignatura
+    // $.items[10][2].name
+    if (typeof p !== 'string' || !p.startsWith('$')) return ['$'];
+    const out = ['$'];
+    let i = 1; // start after '$'
+    // Optional dot right after $
+    if (p[i] === '.') i++;
+    let buf = '';
+
+    const pushBufIfAny = () => {
+      if (buf.length) { out.push(buf); buf=''; }
+    };
+
+    while (i < p.length) {
+      const ch = p[i];
+      if (ch === '.') {
+        // separator between object keys
+        pushBufIfAny();
+        i++;
+      } else if (ch === '[') {
+        // array index token
+        pushBufIfAny();
+        i++; // skip '['
+        let numStr = '';
+        while (i < p.length && p[i] !== ']') {
+          numStr += p[i++];
+        }
+        // skip ']'
+        if (i < p.length && p[i] === ']') i++;
+        // convert to number
+        const idx = Number(numStr.trim());
+        out.push(Number.isFinite(idx) ? idx : 0);
+        // allow a dot right after closing bracket
+        if (p[i] === '.') i++;
+      } else {
+        // part of an identifier
+        buf += ch;
+        i++;
+      }
+    }
+    pushBufIfAny();
+    return out;
+  }
+
+  function findNodeIdByPath(n, targetPath){
+    if (!n) return null;
+    if (n.path===targetPath) return n.id;
+    if (n.children) for (const c of n.children){ const r=findNodeIdByPath(c,targetPath); if (r) return r; }
+    return null;
+  }
+
+  function rebuildJson(n){
+    if (!n) return null;
+    if (n.type==='object'){
+      const obj={};
+      for (const ch of n.children||[]) obj[ch.key]=rebuildJson(ch);
+      return obj;
+    }
+    if (n.type==='array'){
+      const arr=[];
+      for (const ch of n.children||[]) arr.push(rebuildJson(ch));
+      return arr;
+    }
+    return n.value;
+  }
+  // ---- File System Access helpers ----
+  async function requestWritePermission() {
+    if (!originalFileHandle || !originalFileHandle.queryPermission) return false;
+    const opts = { mode: 'readwrite' };
+    let perm = await originalFileHandle.queryPermission(opts);
+    if (perm === 'granted') return true;
+    if (originalFileHandle.requestPermission) {
+      perm = await originalFileHandle.requestPermission(opts);
+      return perm === 'granted';
+    }
+    return false;
+  }
+
+  async function writeToOriginalFile(text) {
+    if (!originalFileHandle) return false;
+    try {
+      const ok = await requestWritePermission();
+      if (!ok) return false;
+      const writable = await originalFileHandle.createWritable();
+      await writable.write(text);
+      await writable.close();
+      return true;
+    } catch (e) {
+      console.warn('Failed to write file:', e);
+      return false;
+    }
+  }
+
+  async function saveBackToOriginalIfAuto() {
+    if (saveMode !== 'auto') return;
+    if (!model) return;
+    // Ensure we have the latest text
+    try { lastJsonText = JSON.stringify(rebuildJson(model), null, 2); } catch {}
+    if (originalFileHandle) {
+      await writeToOriginalFile(lastJsonText);
+    }
+  }
+})();
+</script>
+</body>
+</html>
