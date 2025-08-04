@@ -3,10 +3,15 @@ Visualize and edit JSON, with zoom, pan, search and more
 
 ### Features
 ✅ Click on any node and it will become central node (with its children nodes around)
+
 ✅ Edit values (with both automatic save or manual export)
+
 ✅ Search everywhere
+
 ✅ Wheel to zoom, drag to move canvas
+
 ✅ Open any JSON from disk or paste it
+
 ✅ Modern UI
 
 ### Support project
