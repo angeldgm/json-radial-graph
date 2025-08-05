@@ -16,11 +16,11 @@ Visualize and edit JSON, with zoom, pan, search and more
 
 ✅ Create new entries
 
-✅ Search everywhere
+✅ Search everywhere (and click result to navigate to it)
 
 ✅ Wheel to zoom, drag to move canvas
 
-✅ Open any JSON from disk or paste it
+✅ Open any JSON from disk, paste it create a new one
 
 ✅ Modern UI
 
