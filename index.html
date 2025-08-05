@@ -295,14 +295,6 @@
         <button class="btn small" id="openClose">Close</button>
       </div>
       <div class="body">
-        <div style="min-width:220px;display:flex;align-items:flex-start;justify-content:flex-center">
-          <div class="seg" title="If enabled and supported, edits will auto-save back to the chosen file">
-            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
-              <input type="checkbox" id="allowEdit" style="accent-color: var(--accent);" />
-              Allow edit (write access)
-            </label>
-          </div>
-        </div>
         <div class="row">
           <div class="dropzone" id="dropzone">
             <div style="display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:center;">
@@ -394,8 +386,8 @@
   const dropzone = document.getElementById('dropzone');
   const chooseFileBtn = document.getElementById('chooseFileBtn');
   const pasteJson = document.getElementById('pasteJson');
-  // late-bind allowEdit after modal is shown to ensure element exists
-  function getAllowEditChk(){ return document.getElementById('allowEdit'); }
+  // removed allowEdit checkbox; writes will request permission on-demand
+  function getAllowEditChk(){ return null; }
 
   // Save/Export controls
   const exportBtn = document.getElementById('exportJsonBtn');
@@ -503,7 +495,11 @@
         } else {
           val = input;
         }
+        // Request write permission on demand when saving a change.
+        // applyValueAtPath will rebuild the JSON and then we trigger save.
         applyValueAtPath(n.path, val, newType);
+        // After applying a change, attempt to save (auto mode triggers write, manual leaves for export).
+        saveBackToOriginalIfAuto();
       });
       actions.appendChild(editBtn);
 
@@ -1064,6 +1060,7 @@
     hideOpenModal();
     // reset input so re-choosing same file works
     hiddenFileInput.value='';
+    // Note: Regular input cannot grant write handles; export/manual save still works.
   });
 
   btnSample.addEventListener('click', ()=>{
@@ -1207,6 +1204,8 @@
 
       // Cache latest JSON text
       try { lastJsonText = JSON.stringify(rebuildJson(model), null, 2); } catch {}
+
+      // Removed proactive permission requests. Permission will be requested on first save attempt.
     }catch(err){
       alert('Failed to parse JSON: '+err.message);
     }
@@ -1510,6 +1509,10 @@
   })();
 
   document.getElementById('openJsonDialog').addEventListener('click', ()=>{
+    // Reset previously granted write permissions by discarding the old handle.
+    // This ensures the browser asks again for permission for previously opened files.
+    originalFileHandle = null;
+
     // Always open the modal. The picker can be triggered from inside via "Choose file…" when Allow edit is on.
     showOpenModal();
   });
@@ -1517,9 +1520,9 @@
   openCancelBtn.addEventListener('click', hideOpenModal);
 
   chooseFileBtn.addEventListener('click', async (e)=>{
-    const allowEditChk = getAllowEditChk();
-    // If Allow edit is enabled and API is supported, use the picker to obtain a writable handle
-    if (allowEditChk && allowEditChk.checked && window.showOpenFilePicker){
+    // Prefer native file picker when available to obtain a FileSystemFileHandle,
+    // but do not request write permission yet; we'll do it on first save attempt.
+    if (window.showOpenFilePicker){
       e.preventDefault();
       try{
         const [handle] = await window.showOpenFilePicker({
@@ -1558,6 +1561,7 @@
     fileNameEl.textContent = file.name;
     tryLoad(text);
     hideOpenModal();
+    // If user opted into edit mode and we have a handle via picker in future, we will prompt then.
   });
 
   openLoadBtn.addEventListener('click', ()=>{
@@ -1674,7 +1678,7 @@
     zoom = zoomKeep.z; panX = zoomKeep.x; panY = zoomKeep.y;
     inner.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
 
-    // Try autosave if enabled
+    // Try autosave if enabled (will request permission on-demand)
     saveBackToOriginalIfAuto();
   }
 
@@ -1774,6 +1778,8 @@
     layoutAndRender(true);
     zoom = zoomKeep.z; panX = zoomKeep.x; panY = zoomKeep.y;
     inner.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+    // After applying a change, attempt to save (auto mode requests permission as needed)
+    saveBackToOriginalIfAuto();
   }
 
   // (legacy inline "Create" subnode and hover chip repositioning removed; using per-node always-visible action chips)
@@ -1848,13 +1854,22 @@
   }
   // ---- File System Access helpers ----
   async function requestWritePermission() {
-    if (!originalFileHandle || !originalFileHandle.queryPermission) return false;
+    // Guard: need a handle and browser support
+    if (!originalFileHandle) return false;
     const opts = { mode: 'readwrite' };
-    let perm = await originalFileHandle.queryPermission(opts);
-    if (perm === 'granted') return true;
-    if (originalFileHandle.requestPermission) {
-      perm = await originalFileHandle.requestPermission(opts);
-      return perm === 'granted';
+    // First, query current permission
+    try {
+      // if (originalFileHandle.queryPermission) {
+      //   const current = await originalFileHandle.queryPermission(opts);
+      //   if (current === 'granted') return true;
+      // }
+      // Important: actively request permission in response to user gesture contexts
+      if (originalFileHandle.requestPermission) {
+        const asked = await originalFileHandle.requestPermission(opts);
+        return asked === 'granted';
+      }
+    } catch (e) {
+      console.warn('requestWritePermission error:', e);
     }
     return false;
   }
@@ -1862,11 +1877,24 @@
   async function writeToOriginalFile(text) {
     if (!originalFileHandle) return false;
     try {
+      // Ensure permission for each write attempt
       const ok = await requestWritePermission();
-      if (!ok) return false;
+      if (!ok) {
+        console.info('Write permission not granted; skipping auto-save.');
+        // annotate filename to hint missing permission
+        if (fileNameEl && originalFileName) fileNameEl.textContent = originalFileName + ' (no write permission)';
+        return false;
+      }
+      // Some Chromium builds require .createWritable to be called within a user gesture; if unavailable, fallback
+      if (!originalFileHandle.createWritable) {
+        console.warn('createWritable not available on handle.');
+        return false;
+      }
       const writable = await originalFileHandle.createWritable();
       await writable.write(text);
       await writable.close();
+      // restore clean filename label after successful write
+      if (fileNameEl && originalFileName) fileNameEl.textContent = originalFileName;
       return true;
     } catch (e) {
       console.warn('Failed to write file:', e);
@@ -1880,7 +1908,11 @@
     // Ensure we have the latest text
     try { lastJsonText = JSON.stringify(rebuildJson(model), null, 2); } catch {}
     if (originalFileHandle) {
-      await writeToOriginalFile(lastJsonText);
+      // Attempt to write; writeToOriginalFile will request permission as needed
+      const ok = await writeToOriginalFile(lastJsonText);
+      if (!ok) {
+        console.info('Auto-save blocked or failed.');
+      }
     }
   }
 
