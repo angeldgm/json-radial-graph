@@ -153,7 +153,9 @@
   .type-boolean{border-color:#8a4c2a;color:#ffd3b3;background:#2a150b}
   .type-null{border-color:#6b6b6b;color:#d7d7d7;background:#1a1a1a}
 
-  .pill{margin-top:6px;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .pill{margin-top:12px;font-size:11px;color:var(--muted);display:block}
+  .pill .row{display:flex;align-items:center;gap:8px}
+  .inline-edit{display:flex} /* restore inline area for in-node actions row */
   .value{
     font-family:ui-monospace,Menlo,Consolas,monospace;color:#dfe7f1;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px;display:inline-block;
@@ -198,6 +200,7 @@
           <span>Open JSON</span>
         </button>
         <input class="file-input" id="fileHidden" type="file" accept=".json,application/json,text/json" />
+        <button class="btn" id="createNewRoot" title="Create new empty JSON with a 'Create' subnode">Create new</button>
         <button class="btn" id="loadSample">Sample</button>
         <button class="btn success" id="expandAll">Go to root</button>
         <div class="search-wrap">
@@ -344,6 +347,7 @@
   const statDepth = document.getElementById('statDepth');
   const btnExpandAll = document.getElementById('expandAll');
   const btnSample = document.getElementById('loadSample');
+  const btnCreateNewRoot = document.getElementById('createNewRoot');
   const searchEl = document.getElementById('search');
   const clearSearchBtn = document.getElementById('clearSearchBtn');
   function updateClearVisibility(){
@@ -421,124 +425,78 @@
 
     el.appendChild(hdr);
 
+    // Content area with vertical padding to host value and actions
+    const content = document.createElement('div');
+    content.className = 'pill';
+    content.style.paddingTop = '6px';
+    content.style.paddingBottom = '2px';
+
+    // Value row (separate line)
     if (n.type!=='object' && n.type!=='array'){
-      const pill = document.createElement('div');
-      pill.className='pill';
+      const valueLine = document.createElement('div');
+      valueLine.className = 'row';
       const v = document.createElement('span');
       v.className='value '+n.type;
-      v.textContent = prettyValue(n.value); // ellipsis via CSS
-      pill.appendChild(v);
-
-      // inline edit button
-      const editBtn = document.createElement('button');
-      editBtn.className='btn small edit-btn';
-      editBtn.textContent='Edit';
-      editBtn.title='Edit value';
-      pill.appendChild(editBtn);
-
-      if (n.type==='string') {
-        const btn = document.createElement('button');
-        btn.className='show-btn';
-        btn.textContent='show';
-        btn.title='Show full string';
-        btn.addEventListener('click', (e)=>{
-          e.stopPropagation();
-          openStringPopover(n, btn);
-        });
-        pill.appendChild(btn);
-      }
-
-      // Inline editor (hidden until Edit)
-      const editor = document.createElement('div');
-      editor.className='inline-edit';
-      editor.style.display='none';
-
-      let inputEl;
-      if (n.type==='boolean'){
-        inputEl = document.createElement('select');
-        const o1 = document.createElement('option'); o1.value='true'; o1.textContent='true';
-        const o2 = document.createElement('option'); o2.value='false'; o2.textContent='false';
-        inputEl.appendChild(o1); inputEl.appendChild(o2);
-        inputEl.value = String(!!n.value);
-      } else if (n.type==='null'){
-        inputEl = document.createElement('select');
-        const o0 = document.createElement('option'); o0.value='null'; o0.textContent='null';
-        const o1 = document.createElement('option'); o1.value='value'; o1.textContent='convert to value';
-        inputEl.appendChild(o0); inputEl.appendChild(o1);
-        inputEl.value = 'null';
-      } else {
-        inputEl = document.createElement('input');
-        inputEl.type = 'text';
-        inputEl.value = n.type === 'string' ? n.value : String(n.value);
-      }
-      editor.appendChild(inputEl);
-
-      const actions = document.createElement('div');
-      actions.className='actions';
-      const saveBtn = document.createElement('button'); saveBtn.className='btn small'; saveBtn.textContent='Save';
-      const cancelBtn = document.createElement('button'); cancelBtn.className='btn small'; cancelBtn.textContent='Cancel';
-      actions.appendChild(saveBtn); actions.appendChild(cancelBtn);
-      editor.appendChild(actions);
-
-      pill.appendChild(editor);
-      el.appendChild(pill);
-
-      function openEditor(){ editor.style.display='flex'; editBtn.style.display='none'; }
-      function closeEditor(){ editor.style.display='none'; editBtn.style.display='inline-flex'; resetField(); }
-      function resetField(){
-        if (n.type==='boolean'){ inputEl.value = String(!!n.value); }
-        else if (n.type==='null'){ inputEl.value = 'null'; }
-        else { inputEl.value = n.type === 'string' ? n.value : String(n.value); }
-      }
-
-      editBtn.addEventListener('click', (e)=>{ e.stopPropagation(); openEditor(); });
-      cancelBtn.addEventListener('click', (e)=>{ e.stopPropagation(); closeEditor(); });
-
-      saveBtn.addEventListener('click', (e)=>{
-        e.stopPropagation();
-        let newVal;
-        let newType = n.type;
-        if (n.type==='boolean'){
-          newVal = inputEl.value === 'true';
-        } else if (n.type==='null'){
-          if (inputEl.value==='null'){ newVal = null; }
-          else { newVal = ''; newType='string'; }
-        } else if (n.type==='number'){
-          const parsed = Number(inputEl.value.trim());
-          if (!Number.isFinite(parsed)){ alert('Invalid number'); return; }
-          newVal = parsed;
-        } else if (n.type==='string'){
-          newVal = inputEl.value;
-        } else {
-          newVal = inputEl.value;
-        }
-
-        // Update underlying JSON via path (this also rebuilds model and serializes)
-        applyValueAtPath(n.path, newVal, newType);
-
-        // Update UI
-        v.textContent = prettyValue(newVal);
-        // Update node meta
-        n.value = newVal;
-        n.type = newType || typeOf(newVal);
-
-        closeEditor();
-
-        // Rerender to update stats / badges if type changed
-        layoutAndRender(true);
-
-        // Attempt auto save to original file if enabled
-        saveBackToOriginalIfAuto();
-      });
+      v.textContent = prettyValue(n.value);
+      valueLine.appendChild(v);
+      content.appendChild(valueLine);
     }
 
-    // Make the whole node clickable, including header, key, and badge.
-    // Only exclude clicks on the explicit "show" button and the toggle chevron itself.
+    // In-node actions row (separate line)
+    const actions = document.createElement('div');
+    actions.className = 'row';
+    actions.style.marginTop = '8px';
+    if (n.type==='object' || n.type==='array'){
+      const createBtn = document.createElement('button');
+      createBtn.className='btn small';
+      createBtn.textContent='Create';
+      createBtn.title='Add entry to this '+n.type;
+      createBtn.addEventListener('click', (e)=>{ e.stopPropagation(); createModal.open({ path:n.path, containerType:n.type }); });
+      actions.appendChild(createBtn);
+    } else {
+      const editBtn = document.createElement('button');
+      editBtn.className='btn small';
+      editBtn.textContent='Edit';
+      editBtn.title='Edit value';
+      editBtn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        let input = prompt('Enter new value', n.type==='string'? n.value : String(n.value));
+        if (input===null) return;
+        let val=n.value, newType=n.type;
+        if (n.type==='number'){
+          const num = Number(input.trim()); if (!Number.isFinite(num)) return alert('Invalid number');
+          val=num;
+        } else if (n.type==='boolean'){
+          val = String(input).toLowerCase()==='true';
+        } else if (n.type==='null'){
+          val = input==='null' ? null : String(input);
+          newType = (val===null)?'null':'string';
+        } else {
+          val = input;
+        }
+        applyValueAtPath(n.path, val, newType);
+      });
+      actions.appendChild(editBtn);
+
+      if (n.type==='string'){
+        const showBtn = document.createElement('button');
+        showBtn.className='btn small';
+        showBtn.textContent='Show';
+        showBtn.title='Show full string';
+        // Use singleton popover that toggles open/close
+        showBtn.addEventListener('click', (e)=>{ e.stopPropagation(); toggleStringPopover(n, showBtn); });
+        actions.appendChild(showBtn);
+      }
+    }
+
+    content.appendChild(actions);
+    el.appendChild(content);
+
+    // Make the whole node clickable, except the toggle chevron or buttons inside actions/value
     el.addEventListener('click', (e)=>{
-      const target = e.target;
-      const isShowBtn = target && (target.classList && target.classList.contains('show-btn'));
-      const isToggle = target && (target.classList && target.classList.contains('toggle'));
-      if (isShowBtn || isToggle) return; // handled separately
+      const isToggle = e.target.closest && e.target.closest('.toggle');
+      const isButton = e.target.closest && e.target.closest('button');
+      if (isToggle || isButton) return;
       toggleNode(n.id, e.shiftKey);
     });
 
@@ -562,15 +520,32 @@
     return el;
   }
 
-  function openStringPopover(n, anchorBtn){
+  // Singleton popover state for "Show"/"Close" toggling
+  let currentPopover = null;
+  function toggleStringPopover(n, anchorBtn){
+    // If same popover open for same node -> close and return
+    if (currentPopover && currentPopover.dataset.forPath === n.path){
+      currentPopover.remove();
+      currentPopover = null;
+      // Also toggle button label back to "Show"
+      if (anchorBtn) anchorBtn.textContent = 'Show';
+      return;
+    }
+    // Otherwise close any existing then open new
+    if (currentPopover){ currentPopover.remove(); currentPopover = null; }
     const pop = document.createElement('div');
     pop.className='popover';
+    pop.dataset.forPath = n.path;
     const head = document.createElement('div');
     head.className='pop-head';
     head.innerHTML = `<span>${n.path}</span>`;
-    const close = document.createElement('button'); close.className='close'; close.textContent='Close';
-    close.addEventListener('click', ()=> pop.remove());
-    head.appendChild(close);
+    // const close = document.createElement('button'); close.className='close'; close.textContent='Close';
+    // close.addEventListener('click', ()=>{
+    //   pop.remove();
+    //   currentPopover = null;
+    //   if (anchorBtn) anchorBtn.textContent = 'Show';
+    // });
+    // head.appendChild(close);
     const pre = document.createElement('div');
     pre.textContent = n.value; // raw value (no quotes)
     pop.appendChild(head); pop.appendChild(pre);
@@ -583,6 +558,10 @@
     const py = Math.min(window.innerHeight - pop.offsetHeight - pad, Math.max(pad, r.bottom + 6));
     pop.style.left = px + 'px';
     pop.style.top = py + 'px';
+
+    // Update state and button text to "Close"
+    currentPopover = pop;
+    if (anchorBtn) anchorBtn.textContent = 'Close';
   }
 
   function svg(name){
@@ -771,32 +750,6 @@
       }
     })();
 
-    // Make the parent-of-focus act as an explicit "back" when clicking anywhere on it
-    (function wireParentBack(){
-      const focusedNode = findById(model, focusId || model.id) || model;
-      const parentOfFocused = focusedNode.parent != null ? findById(model, focusedNode.parent) : null;
-      if (!parentOfFocused) return;
-      const parentEl = nodesMap.get(parentOfFocused.id);
-      if (!parentEl) return;
-      if (!parentEl.dataset.backHandlerAttached){
-        parentEl.addEventListener('click', (e)=>{
-          // Clicking the parent card navigates back (focus parent)
-          e.stopPropagation();
-          focusId = parentOfFocused.id;
-          // Keep route visible: expand focused and its ancestors
-          expanded.clear();
-          expanded.add(focusId);
-          let p = parentOfFocused.parent != null ? findById(model, parentOfFocused.parent) : null;
-          while (p){
-            expanded.add(p.id);
-            if (p.parent == null) break;
-            p = findById(model, p.parent);
-          }
-          layoutAndRender(true);
-        });
-        parentEl.dataset.backHandlerAttached = '1';
-      }
-    })();
 
     // Draw edges: parent->focus and focus->children
     const paths = [];
@@ -1414,6 +1367,97 @@
   function showOpenModal(){ openModal.style.display='flex'; }
   function hideOpenModal(){ openModal.style.display='none'; pasteJson.value=''; dropzone.classList.remove('dragover'); }
 
+  // Modal for creating entries to avoid closing on focus and to provide a stable UI
+  const createModal = (function(){
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.style.display = 'none';
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="head">
+        <div>Create entry</div>
+        <button class="btn small" data-close>Close</button>
+      </div>
+      <div class="body">
+        <div class="row">
+          <div id="createForm" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <input id="createKey" type="text" placeholder="key (objects only)" />
+            <select id="createType">
+              <option value="string">string</option>
+              <option value="number">number</option>
+              <option value="boolean">boolean</option>
+              <option value="null">null</option>
+              <option value="object">object</option>
+              <option value="array">array</option>
+            </select>
+            <input id="createValue" type="text" placeholder="value (ignored for object/array)" />
+            <div style="flex:1"></div>
+            <button class="btn" id="createCancel">Cancel</button>
+            <button class="btn primary" id="createAdd">Add</button>
+          </div>
+        </div>
+      </div>
+    `;
+    const wrap = document.createElement('div');
+    wrap.appendChild(modal);
+    backdrop.appendChild(wrap);
+    document.body.appendChild(backdrop);
+
+    let ctx = null; // { path, type }
+    function open(context){
+      ctx = context;
+      backdrop.style.display = 'flex';
+      const keyEl = modal.querySelector('#createKey');
+      const typeEl = modal.querySelector('#createType');
+      const valEl = modal.querySelector('#createValue');
+      keyEl.style.display = (ctx.containerType==='object') ? 'inline-block' : 'none';
+      keyEl.value = '';
+      typeEl.value = 'string';
+      valEl.value = '';
+      // Focus first relevant field
+      setTimeout(()=> (ctx.containerType==='object' ? keyEl : valEl).focus(), 0);
+    }
+    function close(){ backdrop.style.display='none'; ctx=null; }
+
+    // Prevent backdrop clicks from closing unexpectedly
+    backdrop.addEventListener('click', (e)=>{ if (e.target === backdrop) close(); });
+    // Header Close button
+    modal.querySelector('[data-close]').addEventListener('click', ()=> close());
+
+    modal.querySelector('#createCancel').addEventListener('click', ()=> close());
+    modal.querySelector('#createAdd').addEventListener('click', ()=>{
+      if (!ctx) return;
+      const keyEl = modal.querySelector('#createKey');
+      const typeEl = modal.querySelector('#createType');
+      const valEl = modal.querySelector('#createValue');
+
+      const t = typeEl.value;
+      let newVal;
+      if (t==='string') newVal = valEl.value;
+      else if (t==='number') {
+        const num = Number(valEl.value.trim());
+        if (!Number.isFinite(num)){ alert('Invalid number'); return; }
+        newVal = num;
+      } else if (t==='boolean') newVal = (String(valEl.value).toLowerCase() === 'true');
+      else if (t==='null') newVal = null;
+      else if (t==='object') newVal = {};
+      else if (t==='array') newVal = [];
+      else newVal = valEl.value;
+
+      if (ctx.containerType==='object') {
+        const k = (keyEl.value || '').trim();
+        if (!k){ alert('Key is required'); return; }
+        addEntryToContainer(ctx.path, 'object', k, newVal);
+      } else {
+        addEntryToContainer(ctx.path, 'array', null, newVal);
+      }
+      close();
+    });
+
+    return { open, close };
+  })();
+
   document.getElementById('openJsonDialog').addEventListener('click', ()=>{
     // Always open the modal. The picker can be triggered from inside via "Choose file…" when Allow edit is on.
     showOpenModal();
@@ -1479,7 +1523,110 @@
     if (openModal.style.display==='flex' && e.key==='Escape') hideOpenModal();
   });
 
+  // (legacy hover actions removed; using per-node always-visible chips)
+
   // ---- Mutation helpers (editing) ----
+  function addEntryToContainer(containerPath, containerType, keyOrNull, valueToInsert){
+    // Rebuild current JSON, then mutate, then reload model while preserving focus/expanded/viewport
+    const rootObj = rebuildJson(model);
+
+    // Parse container path tokens and resolve container reference
+    const tokens = parsePath(containerPath); // e.g. ['$', 'a', 'b', 0]
+    if (!Array.isArray(tokens) || tokens.length < 1) {
+      console.warn('addEntryToContainer: invalid container path', containerPath, tokens);
+      return;
+    }
+
+    // Walk to container
+    let containerRef = rootObj;
+    for (let i = 1; i < tokens.length; i++){
+      const seg = tokens[i];
+      if (containerRef == null || !(seg in containerRef)) {
+        console.warn('addEntryToContainer: path segment missing', seg, 'in', containerRef);
+        return;
+      }
+      containerRef = containerRef[seg];
+    }
+
+    // Validate container type
+    if (containerType === 'object') {
+      if (typeof containerRef !== 'object' || Array.isArray(containerRef) || containerRef === null) {
+        console.warn('addEntryToContainer: target is not an object at', containerPath);
+        return;
+      }
+      const k = keyOrNull;
+      if (!k || typeof k !== 'string') { alert('Key is required'); return; }
+      if (k in containerRef) {
+        const overwrite = confirm(`Key "${k}" already exists. Overwrite?`);
+        if (!overwrite) return;
+      }
+      containerRef[k] = valueToInsert;
+    } else if (containerType === 'array') {
+      if (!Array.isArray(containerRef)) {
+        console.warn('addEntryToContainer: target is not an array at', containerPath);
+        return;
+      }
+      containerRef.push(valueToInsert);
+    } else {
+      console.warn('addEntryToContainer: unsupported containerType', containerType);
+      return;
+    }
+
+    // Preserve viewport/focus/expanded
+    const zoomKeep = { z: zoom, x: panX, y: panY };
+    // Snapshot expanded paths
+    const expandedPaths = new Set();
+    let focusPathPrev = null;
+    if (model) {
+      const curFocus = findById(model, focusId || model.id);
+      focusPathPrev = curFocus ? curFocus.path : null;
+      (function collectExpanded(n){
+        if (!n) return;
+        if (expanded.has(n.id)) expandedPaths.add(n.path);
+        if (n.children) for (const c of n.children) collectExpanded(c);
+      })(model);
+    }
+
+    // Reload model from mutated root
+    const newText = JSON.stringify(rootObj, null, 2);
+    lastJsonText = newText;
+    tryLoad(newText);
+
+    // Restore expanded by mapping paths
+    const restored = new Set();
+    if (model) {
+      for (const p of expandedPaths) {
+        const nid = findNodeIdByPath(model, p);
+        if (nid != null) restored.add(nid);
+      }
+    }
+    expanded.clear();
+    for (const id of restored) expanded.add(id);
+
+    // Focus preference: keep previous focus if still exists; else focus container; else root
+    const focusByPrev = (focusPathPrev && findNodeIdByPath(model, focusPathPrev)) || null;
+    const focusByContainer = findNodeIdByPath(model, containerPath) || null;
+    focusId = focusByPrev || focusByContainer || (model ? model.id : null);
+
+    // Ensure container ancestors expanded
+    if (focusId != null) {
+      let pnode = findById(model, focusId);
+      while (pnode && pnode.parent != null) {
+        const parent = findById(model, pnode.parent);
+        if (parent) expanded.add(parent.id);
+        pnode = parent;
+      }
+    }
+
+    // Render and restore viewport
+    layoutAndRender(true);
+    zoom = zoomKeep.z; panX = zoomKeep.x; panY = zoomKeep.y;
+    inner.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+
+    // Try autosave if enabled
+    saveBackToOriginalIfAuto();
+  }
+
   function applyValueAtPath(path, newVal, newType){
     // Walk original JSON using the path syntax used in buildModel: $.a.b[0]
     // First, reconstruct the full JSON object
@@ -1577,6 +1724,8 @@
     zoom = zoomKeep.z; panX = zoomKeep.x; panY = zoomKeep.y;
     inner.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
   }
+
+  // (legacy inline "Create" subnode and hover chip repositioning removed; using per-node always-visible action chips)
 
   function parsePath(p){
     // Supports:
@@ -1683,6 +1832,25 @@
       await writeToOriginalFile(lastJsonText);
     }
   }
+
+  // Wire "Create new" button to actually load an empty JSON and expose Create subnode
+  (function wireCreateNew(){
+    const btn = document.getElementById('createNewRoot');
+    if (!btn) return;
+    btn.addEventListener('click', ()=>{
+      originalFileHandle = null;
+      originalFileName = 'new.json';
+      fileNameEl.textContent = originalFileName;
+      tryLoad(JSON.stringify({}));
+      // ensure root focused and expanded
+      if (model){
+        focusId = model.id;
+        expanded.clear();
+        expanded.add(model.id);
+        layoutAndRender(true);
+      }
+    });
+  })();
 })();
 </script>
 </body>
