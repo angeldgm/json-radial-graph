@@ -14,6 +14,8 @@ Visualize and edit JSON, with zoom, pan, search and more
 
 ✅ Edit values (with both automatic save or manual export)
 
+✅ Create new entries
+
 ✅ Search everywhere
 
 ✅ Wheel to zoom, drag to move canvas
@@ -21,3 +23,6 @@ Visualize and edit JSON, with zoom, pan, search and more
 ✅ Open any JSON from disk or paste it
 
 ✅ Modern UI
+
+### Image with latest features added
+![json-radial-graph-latest-features](json_radial_graph.png)
