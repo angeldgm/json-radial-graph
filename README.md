@@ -25,6 +25,3 @@ Visualize and edit JSON, with zoom, pan, search and more
 ✅ Open any JSON from disk, paste it create a new one
 
 ✅ Modern UI
-
-### Image with latest features added
-![json-radial-graph-latest-features](json_radial_graph.png)
