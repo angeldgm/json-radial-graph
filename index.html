@@ -657,6 +657,30 @@
   const hiddenFileInput = document.getElementById('fileHidden');
   const resultsEl = document.getElementById('searchResults');
   const fileNameEl = document.getElementById('fileName');
+  // Helper: show trimmed filename like "12345[…].json" when too long
+  function displayFileName(name){
+    if (!fileNameEl) return;
+    try{
+      const str = String(name || '');
+      if (!str){ fileNameEl.textContent = 'No file loaded'; return; }
+      // Separate base and extension (keep dot if present)
+      const m = str.match(/^(.+?)(\.[^.]+)?$/);
+      const base = m ? m[1] : str;
+      const ext = m && m[2] ? m[2] : '';
+      const MAX_BASE = 12; // visible chars before ellipsis token
+      const ELL = '[…]';
+      let shown;
+      if (base.length > MAX_BASE){
+        shown = base.slice(0, MAX_BASE) + ELL + ext;
+      } else {
+        shown = base + ext;
+      }
+      fileNameEl.textContent = shown;
+      fileNameEl.title = str; // tooltip shows full name
+    }catch{
+      fileNameEl.textContent = String(name || '');
+    }
+  }
   const statNodes = document.getElementById('statNodes');
   const statDepth = document.getElementById('statDepth');
   const btnExpandAll = document.getElementById('expandAll');
@@ -1368,7 +1392,7 @@
   hiddenFileInput.addEventListener('change', async (e)=>{
     const file=e.target.files?.[0]; if(!file) return;
     originalFileName = file.name;
-    fileNameEl.textContent=file.name;
+    displayFileName(file.name);
     const text=await file.text();
     tryLoad(text);
     hideOpenModal();
@@ -1922,7 +1946,7 @@
         originalFileHandle = handle;
         const file = await handle.getFile();
         originalFileName = file.name;
-        fileNameEl.textContent = originalFileName;
+        displayFileName(originalFileName);
         const text = await file.text();
         tryLoad(text);
         hideOpenModal();
@@ -1947,7 +1971,7 @@
     if (!/\.json$/i.test(file.name)) { alert('Please drop a .json file'); return; }
     originalFileName = file.name;
     const text = await file.text();
-    fileNameEl.textContent = file.name;
+    displayFileName(file.name);
     tryLoad(text);
     hideOpenModal();
     // If user opted into edit mode and we have a handle via picker in future, we will prompt then.
@@ -1957,7 +1981,7 @@
     const text = pasteJson.value.trim();
     if (!text){ alert('Paste JSON text or choose a file'); return; }
     originalFileName = 'pasted.json';
-    fileNameEl.textContent = originalFileName;
+    displayFileName(originalFileName);
     tryLoad(text);
     hideOpenModal();
   });
@@ -2424,7 +2448,7 @@
       await writable.write(text);
       await writable.close();
       // restore clean filename label after successful write
-      if (fileNameEl && originalFileName) fileNameEl.textContent = originalFileName;
+      if (fileNameEl && originalFileName) displayFileName(originalFileName);
       return true;
     } catch (e) {
       console.warn('Failed to write file:', e);
@@ -2453,7 +2477,7 @@
     btn.addEventListener('click', ()=>{
       originalFileHandle = null;
       originalFileName = 'new.json';
-      fileNameEl.textContent = originalFileName;
+      displayFileName(originalFileName);
       tryLoad(JSON.stringify({}));
       // ensure root focused and expanded
       if (model){
