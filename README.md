@@ -1,5 +1,5 @@
 # json-radial-graph
-Visualize and edit JSON, with zoom, pan, search and more
+Edit JSON visually. Add new entries, edit existing ones, search, replace, zoom, etc. See all features below.
 
 ### <a href="https://angeldgm.github.io/json-radial-graph/">Go to web app</a>
 
