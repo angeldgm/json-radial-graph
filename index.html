@@ -77,12 +77,65 @@
   .inline-edit .actions{display:flex;gap:6px}
 
   .layout{display:grid;grid-template-columns:280px 1fr;height:calc(100% - 64px)}
+  .layout.sidebar-hidden{grid-template-columns:0 1fr}
   .sidebar{
+    position: relative;
     border-right:1px solid var(--border);
     background:linear-gradient(180deg,#0f1621,#0b1119);
     min-width:220px;
     overflow:auto;
     overflow-x:hidden; /* prevent horizontal bleed */
+    transition:width .2s ease, min-width .2s ease, opacity .2s ease;
+  }
+  .sidebar.hidden{
+    width:0; min-width:0; opacity:0; pointer-events:none;
+  }
+  .sidebar-toggle{
+    position:absolute; left:8px; top:8px; z-index:16;
+    display:inline-flex; align-items:center; gap:6px;
+    padding:6px 10px; border-radius:10px; cursor:pointer;
+    background:linear-gradient(180deg,#182335,#111826); border:1px solid var(--border); color:var(--text);
+    box-shadow:0 8px 24px #0006;
+  }
+  .sidebar-toggle:hover{ background:#1a2639 }
+  /* Tabs */
+  .tabs{
+    display:flex; gap:8px; padding:10px 10px 6px 10px; position:sticky; top:0; z-index:5;
+    background:#0f1621f2; backdrop-filter:blur(6px); border-bottom:1px solid var(--border);
+  }
+  .tab-btn{
+    padding:6px 10px; border:1px solid var(--border); border-radius:8px; background:#0d1522; color:var(--muted);
+    cursor:pointer; user-select:none; font-size:12px;
+  }
+  .tab-btn.active{ color:var(--text); background:#122035; border-color:#1f3552 }
+  .tab-panel{ display:none }
+  .tab-panel.active{ display:block }
+  /* JSON view editor */
+  .json-editor-wrap{ padding:10px }
+  .json-editor-toolbar{
+    display:flex; gap:8px; align-items:center; padding:6px 10px; border-bottom:1px solid var(--border);
+    background:#0d1420; position:sticky; top:42px; z-index:4;
+  }
+  .json-editor-toolbar input[type="text"]{
+    background:transparent; border:0; outline:none; color:var(--text); width:180px; font-size:13px;
+  }
+  .json-editor-toolbar .sep{ width:1px; height:20px; background:var(--border) }
+  .json-editor-actions{ display:grid; grid-template-columns:1fr; gap:8px; padding:8px 10px }
+  .json-editor-actions .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+  .json-editor-actions input[type="text"]{
+    background:transparent; border:0; outline:none; color:var(--text); width:180px; font-size:13px;
+  }
+  /* Make Find/Replace boxes visually identical and full width */
+  .search-wrap.compact{ min-width:auto; padding:4px 8px; width:100% }
+  .search-wrap.compact input{ width:100% }
+  /* Keep buttons from wrapping mid-word and ensure they fit */
+  .json-editor-actions .row button.btn.small{ white-space:nowrap }
+  /* Place Format/Minify on own row left-aligned to avoid overflow */
+  .json-actions-format{ display:flex; gap:8px; padding:0 10px }
+  .json-editor{
+    width:100%; min-height:240px; background:#0b1420; border:1px solid var(--border);
+    border-radius:10px; color:var(--text); padding:10px; font-family:ui-monospace,Menlo,Consolas,monospace;
+    white-space:pre; resize:vertical;
   }
   .pane-title{padding:10px 14px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--border);position:sticky;top:0;background:#0f1621f2;backdrop-filter:blur(6px)}
   .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}
@@ -212,6 +265,40 @@
     background:#0b1420; color:var(--muted); cursor:pointer;
   }
 
+  /* Sidebar toggle button */
+  .sidebar-toggle{
+    position:absolute; left:12px; top:12px; z-index:16;
+    display:inline-flex; align-items:center; gap:6px;
+    padding:6px 10px; border-radius:10px; cursor:pointer;
+    background:linear-gradient(180deg,#182335,#111826); border:1px solid var(--border); color:var(--text);
+    box-shadow:0 8px 24px #0006;
+  }
+  .sidebar-toggle:hover{ background:#1a2639 }
+  .layout.sidebar-hidden{grid-template-columns:0 1fr}
+  .sidebar.hidden{ width:0; min-width:0; opacity:0; pointer-events:none; transition:width .2s ease, min-width .2s ease, opacity .2s ease; }
+  /* Sidebar chevron toggle (bottom-right of sidebar) */
+  .sidebar-chev{
+    position:absolute;
+    left:8px;
+    bottom:8px;
+    z-index:16;
+    width:34px; height:34px;
+    border-radius:50%;
+    display:grid; place-items:center;
+    background:linear-gradient(180deg,#182335,#111826);
+    border:1px solid var(--border);
+    color:var(--text);
+    cursor:pointer; user-select:none;
+    box-shadow:0 8px 24px #0006;
+  }
+  .sidebar-chev:hover{ background:#1a2639 }
+  /* Animate icon */
+  .sidebar-chev svg{ display:block; transition: transform 160ms ease; }
+  /* When sidebar is closed (aria-pressed=true), rotate 180deg so the base LEFT chevron points RIGHT */
+  .sidebar-chev[aria-pressed="true"] svg{ transform: rotate(180deg); }
+  /* Hidden-state layout helpers */
+  .layout.sidebar-hidden{ grid-template-columns:0 1fr }
+  .sidebar.hidden{ width:0; min-width:0; opacity:0; pointer-events:none; transition:width .2s ease, min-width .2s ease, opacity .2s ease; }
   @media (max-width:900px){.layout{grid-template-columns:1fr}.sidebar{display:none}}
 </style>
 </head>
@@ -366,11 +453,7 @@
         <button class="btn" id="expandAll">Go to root</button>
         <button class="btn" id="supportDev">Support development</button>
         <button class="btn" id="feedback">Feedback</button>
-        <div class="search-wrap">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-          <input id="search" type="text" placeholder="Search keys or values… (press Enter)" />
-          <button class="btn small" id="clearSearchBtn" title="Clear search" style="display:none">Clear</button>
-        </div>
+        <!-- Topbar search removed; use the Search tab -->
       </div>
       <div class="right-controls">
         <div class="seg" title="Choose how edits are saved">
@@ -384,36 +467,101 @@
   </div>
 
   <div class="layout" role="main">
-    <aside class="sidebar" aria-label="Sidebar">
-      <div class="pane-title">Tips</div>
-      <div class="pane">
-        <div class="results">
-          <div class="result-item">
-            Click to expand/collapse node
-          </div>
-          <div class="result-item">
-            Wheel to zoom, drag to move canvas
+    <!-- Chevron for sidebar toggle -->
+    <button class="sidebar-chev" id="chevToggle" title="Hide panel" aria-pressed="false" aria-label="Toggle sidebar">
+      <!-- Base icon is LEFT chevron; we will rotate to show RIGHT when collapsed -->
+      <svg id="chevIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M15 6l-6 6 6 6"/>
+      </svg>
+    </button>
+    <aside class="sidebar" aria-label="Sidebar" id="leftSidebar">
+      <div class="tabs" role="tablist" aria-label="Sidebar tabs">
+        <button class="tab-btn active" id="tabOverviewBtn" role="tab" aria-selected="true" aria-controls="tabOverview">Home</button>
+        <button class="tab-btn" id="tabJsonBtn" role="tab" aria-selected="false" aria-controls="tabJson">Source</button>
+        <button class="tab-btn" id="tabSearchBtn" role="tab" aria-selected="false" aria-controls="tabSearch">Search</button>
+      </div>
+
+      <section id="tabOverview" class="tab-panel active" role="tabpanel" aria-labelledby="tabOverviewBtn">
+        <div class="pane-title">Tips</div>
+        <div class="pane">
+          <div class="results">
+            <div class="result-item">
+              Click to expand/collapse node
+            </div>
+            <div class="result-item">
+              Wheel to zoom, drag to move canvas
+            </div>
           </div>
         </div>
-      </div>
-      <div class="pane-title">Overview</div>
-      <div class="stats">
-        <div class="stat"><div class="num" id="statNodes">0</div><div>Nodes</div></div>
-        <div class="stat"><div class="num" id="statDepth">0</div><div>Depth</div></div>
-      </div>
-      <div class="pane-title">Legend</div>
-      <div class="legend">
-        <div class="item"><span class="dot object"></span> Object</div>
-        <div class="item"><span class="dot array"></span> Array</div>
-        <div class="item"><span class="dot value"></span> Primitive value</div>
-        <div class="item"><span class="dot key"></span> Key / Index</div>
-      </div>
-      <div class="pane-title">Search Results</div>
-      <div class="pane">
-        <div class="results" id="searchResults">
-          <!-- results populate here -->
+        <div class="pane-title">Overview</div>
+        <div class="stats">
+          <div class="stat"><div class="num" id="statNodes">0</div><div>Nodes</div></div>
+          <div class="stat"><div class="num" id="statDepth">0</div><div>Depth</div></div>
         </div>
-      </div>
+        <div class="pane-title">Legend</div>
+        <div class="legend">
+          <div class="item"><span class="dot object"></span> Object</div>
+          <div class="item"><span class="dot array"></span> Array</div>
+          <div class="item"><span class="dot value"></span> Primitive value</div>
+          <div class="item"><span class="dot key"></span> Key / Index</div>
+        </div>
+      </section>
+
+      <section id="tabJson" class="tab-panel" role="tabpanel" aria-labelledby="tabJsonBtn">
+        <div class="pane-title">JSON Editor</div>
+        <div class="json-editor-wrap">
+          <!-- Row 1: Find -->
+          <div class="json-editor-toolbar">
+            <div class="search-wrap compact">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5z"/></svg>
+              <input id="jsonFind" type="text" placeholder="Find…" />
+            </div>
+            <span id="jsonErr" style="color:#ffd166;font-size:12px;margin-left:auto;display:none"></span>
+          </div>
+          <!-- Row 2: Replace -->
+          <div class="json-editor-actions">
+            <div class="row">
+              <div class="search-wrap compact">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5z"/></svg>
+                <input id="jsonReplace" type="text" placeholder="Replace with…" />
+              </div>
+            </div>
+            <!-- Row 3: Actions (search/replace) -->
+            <div class="row">
+              <button class="btn small" id="jsonFindNext" title="Find next">Next</button>
+              <button class="btn small" id="jsonReplaceOne" title="Replace next">Replace</button>
+              <button class="btn small" id="jsonReplaceAll" title="Replace all">Replace all</button>
+            </div>
+          </div>
+          <!-- Row 4: Format/minify own row -->
+          <div class="json-actions-format">
+            <button class="btn small" id="jsonFormat" title="Format JSON">Format</button>
+            <button class="btn small" id="jsonMinify" title="Minify JSON">Minify</button>
+          </div>
+          <br>
+          <textarea id="jsonEditor" class="json-editor" aria-label="JSON text editor" placeholder="{ }"></textarea>
+        </div>
+      </section>
+
+      <section id="tabSearch" class="tab-panel" role="tabpanel" aria-labelledby="tabSearchBtn">
+        <div class="pane-title">Search</div>
+        <div class="json-editor-wrap">
+          <!-- Global graph search box -->
+          <div class="json-editor-toolbar">
+            <div class="search-wrap compact">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5z"/></svg>
+              <input id="search" type="text" placeholder="Search keys/values… (press Enter)" />
+              <button class="btn small" id="clearSearchBtn" title="Clear search" style="display:none">Clear</button>
+            </div>
+          </div>
+          <div class="pane-title">Results</div>
+          <div class="pane">
+            <div class="results" id="searchResults">
+              <!-- results populate here -->
+            </div>
+          </div>
+        </div>
+      </section>
     </aside>
 
     <main class="canvas-wrap" id="canvas">
@@ -503,6 +651,9 @@
   const inner = document.getElementById('inner');
   const edgesSvg = document.getElementById('edges');
   const nodesLayer = document.getElementById('nodes');
+  const layoutEl = document.querySelector('.layout');
+  const sidebarEl = document.querySelector('.sidebar');
+  const toggleSidebarBtn = document.getElementById('chevToggle');
   const hiddenFileInput = document.getElementById('fileHidden');
   const resultsEl = document.getElementById('searchResults');
   const fileNameEl = document.getElementById('fileName');
@@ -515,6 +666,22 @@
   const btnCreateNewRoot = document.getElementById('createNewRoot');
   const searchEl = document.getElementById('search');
   const clearSearchBtn = document.getElementById('clearSearchBtn');
+  // JSON tab elements
+  const tabOverviewBtn = document.getElementById('tabOverviewBtn');
+  const tabJsonBtn = document.getElementById('tabJsonBtn');
+  const tabSearchBtn = document.getElementById('tabSearchBtn');
+  const tabOverview = document.getElementById('tabOverview');
+  const tabJson = document.getElementById('tabJson');
+  const tabSearch = document.getElementById('tabSearch');
+  const jsonEditor = document.getElementById('jsonEditor');
+  const jsonErr = document.getElementById('jsonErr');
+  const jsonFind = document.getElementById('jsonFind');
+  const jsonReplace = document.getElementById('jsonReplace');
+  const jsonFindNext = document.getElementById('jsonFindNext');
+  const jsonReplaceOne = document.getElementById('jsonReplaceOne');
+  const jsonReplaceAll = document.getElementById('jsonReplaceAll');
+  const jsonFormat = document.getElementById('jsonFormat');
+  const jsonMinify = document.getElementById('jsonMinify');
   // Zoom controls
   const zoomInBtn = document.getElementById('zoomInBtn');
   const zoomOutBtn = document.getElementById('zoomOutBtn');
@@ -1351,6 +1518,9 @@
 
       // Cache latest JSON text
       try { lastJsonText = JSON.stringify(rebuildJson(model), null, 2); } catch {}
+      // Sync JSON editor textarea if visible
+      if (jsonEditor) jsonEditor.value = lastJsonText || '';
+      if (jsonErr) { jsonErr.style.display='none'; jsonErr.textContent=''; }
 
       // Removed proactive permission requests. Permission will be requested on first save attempt.
     }catch(err){
@@ -1399,18 +1569,82 @@
     setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
   });
 
-  // Search (Enter to apply)
-  searchEl.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      searchQuery = searchEl.value.trim();
-      applySearch();
-      updateClearVisibility();
+  // Sidebar toggle
+  if (toggleSidebarBtn && layoutEl && sidebarEl){
+    let sidebarVisible = true;
+    function setSidebarVisible(v){
+      sidebarVisible = !!v;
+      // When hidden, aria-pressed=true and chevron should point RIGHT (via CSS rotate 180deg)
+      toggleSidebarBtn.setAttribute('aria-pressed', sidebarVisible ? 'false' : 'true');
+      toggleSidebarBtn.setAttribute('title', sidebarVisible ? 'Hide panel' : 'Show panel');
+      sidebarEl.classList.toggle('hidden', !sidebarVisible);
+      layoutEl.classList.toggle('sidebar-hidden', !sidebarVisible);
+      layoutAndRender(false);
     }
-  });
-  // Show/hide clear on typing
-  searchEl.addEventListener('input', updateClearVisibility);
-  // Initialize state on load
-  updateClearVisibility();
+    toggleSidebarBtn.addEventListener('click', ()=> setSidebarVisible(!sidebarVisible));
+    // init visible (open = arrow points LEFT towards the sidebar)
+    setSidebarVisible(true);
+  }
+
+  // Tabs wiring
+  function activateTab(which){
+    const isOverview = which === 'overview';
+    const isJson = which === 'json';
+    const isSearch = which === 'search';
+
+    tabOverviewBtn.classList.toggle('active', isOverview);
+    tabJsonBtn.classList.toggle('active', isJson);
+    tabSearchBtn.classList.toggle('active', isSearch);
+
+    tabOverview.classList.toggle('active', isOverview);
+    tabJson.classList.toggle('active', isJson);
+    tabSearch.classList.toggle('active', isSearch);
+
+    tabOverviewBtn.setAttribute('aria-selected', String(isOverview));
+    tabJsonBtn.setAttribute('aria-selected', String(isJson));
+    tabSearchBtn.setAttribute('aria-selected', String(isSearch));
+
+    // When switching to JSON tab, ensure editor has latest text
+    if (isJson && jsonEditor){
+      try { lastJsonText = JSON.stringify(rebuildJson(model), null, 2); } catch {}
+      jsonEditor.value = lastJsonText || '';
+      if (jsonErr){ jsonErr.style.display='none'; jsonErr.textContent=''; }
+    }
+
+    // When switching to Search, update clear button visibility and hint
+    if (isSearch){
+      updateClearVisibility();
+      // If resultsEl exists and empty, show hint
+      if (resultsEl && !resultsEl.children.length){
+        const hint = document.createElement('div');
+        hint.style.color='var(--muted)';
+        hint.style.fontSize='12px';
+        hint.style.padding='6px 2px';
+        hint.textContent = searchQuery ? 'No results' : 'Type a search and press Enter';
+        resultsEl.appendChild(hint);
+      }
+    }
+  }
+  if (tabOverviewBtn && tabJsonBtn && tabSearchBtn){
+    tabOverviewBtn.addEventListener('click', ()=> activateTab('overview'));
+    tabJsonBtn.addEventListener('click', ()=> activateTab('json'));
+    tabSearchBtn.addEventListener('click', ()=> activateTab('search'));
+  }
+
+  // Search (Enter to apply)
+  if (searchEl){
+    searchEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        searchQuery = searchEl.value.trim();
+        applySearch();
+        updateClearVisibility();
+      }
+    });
+    // Show/hide clear on typing
+    searchEl.addEventListener('input', updateClearVisibility);
+    // Initialize state on load
+    updateClearVisibility();
+  }
   if (clearSearchBtn){
     clearSearchBtn.addEventListener('click', ()=>{
       // reset query
@@ -2007,6 +2241,147 @@
     }
     return n.value;
   }
+  
+  // ---- JSON editor sync and search/replace ----
+  function setModelFromJsonText(text){
+    try{
+      const parsed = JSON.parse(text);
+      // Rebuild model but preserve viewport/focus/expanded
+      const zoomKeep = { z: zoom, x: panX, y: panY };
+      // snapshot expanded paths and focus path
+      const expandedPaths = new Set();
+      let focusPathPrev = null;
+      if (model){
+        const curFocus = findById(model, focusId || model.id);
+        focusPathPrev = curFocus ? curFocus.path : null;
+        (function collectExpanded(n){
+          if (!n) return;
+          if (expanded.has(n.id)) expandedPaths.add(n.path);
+          if (n.children) for (const c of n.children) collectExpanded(c);
+        })(model);
+      }
+      idCounter = 1;
+      model = buildModel(parsed);
+      stats = computeStats(model);
+      statNodes.textContent = String(stats.total || 0);
+      statDepth.textContent = String(stats.depth || 0);
+      // restore expanded
+      const restored = new Set();
+      for (const p of expandedPaths){
+        const nid = findNodeIdByPath(model, p);
+        if (nid!=null) restored.add(nid);
+      }
+      expanded.clear();
+      for (const id of restored) expanded.add(id);
+      // focus restore
+      const focusByPrev = (focusPathPrev && findNodeIdByPath(model, focusPathPrev)) || null;
+      focusId = focusByPrev || (model ? model.id : null);
+      layoutAndRender(true);
+      zoom = zoomKeep.z; panX = zoomKeep.x; panY = zoomKeep.y;
+      inner.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+      lastJsonText = JSON.stringify(parsed, null, 2);
+      if (jsonErr){ jsonErr.style.display='none'; jsonErr.textContent=''; }
+      saveBackToOriginalIfAuto();
+      return true;
+    }catch(e){
+      if (jsonErr){ jsonErr.style.display='inline'; jsonErr.textContent = 'Parse error: ' + e.message; }
+      return false;
+    }
+  }
+  
+  function findNext(haystack, needle, startIndex){
+    if (!needle) return -1;
+    return haystack.toLowerCase().indexOf(needle.toLowerCase(), Math.max(0, startIndex));
+  }
+  
+  if (jsonEditor){
+    // Bidirectional sync on input (debounced)
+    let jsonInputTimer;
+    jsonEditor.addEventListener('input', ()=>{
+      clearTimeout(jsonInputTimer);
+      jsonInputTimer = setTimeout(()=> setModelFromJsonText(jsonEditor.value), 250);
+    });
+    // Also update graph immediately on blur (ensure sync even if debounce hasn't fired)
+    jsonEditor.addEventListener('blur', ()=>{
+      clearTimeout(jsonInputTimer);
+      setModelFromJsonText(jsonEditor.value);
+    });
+  
+    // Search / replace handlers on JSON
+    let lastFindIndex = -1;
+    function doFindNext(){
+      const text = jsonEditor.value || '';
+      const q = (jsonFind.value || '').trim();
+      if (!q) return;
+      const start = jsonEditor.selectionEnd ?? 0;
+      let idx = findNext(text, q, start);
+      if (idx === -1 && start > 0){
+        // wrap around
+        idx = findNext(text, q, 0);
+      }
+      if (idx !== -1){
+        lastFindIndex = idx;
+        jsonEditor.focus();
+        jsonEditor.setSelectionRange(idx, idx + q.length);
+      }
+    }
+    function doReplaceOne(){
+      const q = (jsonFind.value || '').trim();
+      const r = jsonReplace.value ?? '';
+      if (!q) return;
+      const selStart = jsonEditor.selectionStart ?? 0;
+      const selEnd = jsonEditor.selectionEnd ?? 0;
+      const text = jsonEditor.value || '';
+      const selected = text.slice(selStart, selEnd);
+      // If current selection matches query, replace; else find next and replace that
+      if (selected.toLowerCase() === q.toLowerCase()){
+        const newText = text.slice(0, selStart) + r + text.slice(selEnd);
+        jsonEditor.value = newText;
+        // Move cursor after replaced text
+        const pos = selStart + r.length;
+        jsonEditor.setSelectionRange(pos, pos);
+        setModelFromJsonText(newText);
+      } else {
+        doFindNext();
+        // After selecting next, call again quickly to replace it
+        setTimeout(()=> doReplaceOne(), 0);
+      }
+    }
+    function doReplaceAll(){
+      const q = (jsonFind.value || '').trim();
+      const r = jsonReplace.value ?? '';
+      if (!q) return;
+      const text = jsonEditor.value || '';
+      const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      const newText = text.replace(regex, r);
+      jsonEditor.value = newText;
+      setModelFromJsonText(newText);
+    }
+    if (jsonFindNext) jsonFindNext.addEventListener('click', doFindNext);
+    if (jsonReplaceOne) jsonReplaceOne.addEventListener('click', doReplaceOne);
+    if (jsonReplaceAll) jsonReplaceAll.addEventListener('click', doReplaceAll);
+    if (jsonFormat) jsonFormat.addEventListener('click', ()=>{
+      try{
+        const obj = JSON.parse(jsonEditor.value || '{}');
+        const pretty = JSON.stringify(obj, null, 2);
+        jsonEditor.value = pretty;
+        setModelFromJsonText(pretty);
+      }catch(e){
+        if (jsonErr){ jsonErr.style.display='inline'; jsonErr.textContent = 'Format error: ' + e.message; }
+      }
+    });
+    if (jsonMinify) jsonMinify.addEventListener('click', ()=>{
+      try{
+        const obj = JSON.parse(jsonEditor.value || '{}');
+        const min = JSON.stringify(obj);
+        jsonEditor.value = min;
+        setModelFromJsonText(min);
+      }catch(e){
+        if (jsonErr){ jsonErr.style.display='inline'; jsonErr.textContent = 'Minify error: ' + e.message; }
+      }
+    });
+  }
+  
   // ---- File System Access helpers ----
   async function requestWritePermission() {
     // Guard: need a handle and browser support
