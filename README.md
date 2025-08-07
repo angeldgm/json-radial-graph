@@ -24,4 +24,6 @@ Edit JSON visually. Add new entries, edit existing ones, search, replace, zoom, 
 
 ✅ Open any JSON from disk, paste it create a new one
 
+✅ Keyboard shortcuts
+
 ✅ Modern UI
