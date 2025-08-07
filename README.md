@@ -18,6 +18,8 @@ Visualize and edit JSON, with zoom, pan, search and more
 
 ✅ Search everywhere (and click result to navigate to it)
 
+✅ View source JSON and replace text
+
 ✅ Wheel to zoom, drag to move canvas
 
 ✅ Open any JSON from disk, paste it create a new one
