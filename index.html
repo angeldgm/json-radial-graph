@@ -479,6 +479,7 @@
         <button class="tab-btn active" id="tabOverviewBtn" role="tab" aria-selected="true" aria-controls="tabOverview">Home</button>
         <button class="tab-btn" id="tabJsonBtn" role="tab" aria-selected="false" aria-controls="tabJson">Source</button>
         <button class="tab-btn" id="tabSearchBtn" role="tab" aria-selected="false" aria-controls="tabSearch">Search</button>
+        <button class="tab-btn" id="tabShortcutsBtn" role="tab" aria-selected="false" aria-controls="tabShortcuts">Shortcuts</button>
       </div>
 
       <section id="tabOverview" class="tab-panel active" role="tabpanel" aria-labelledby="tabOverviewBtn">
@@ -558,6 +559,38 @@
           <div class="pane">
             <div class="results" id="searchResults">
               <!-- results populate here -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tabShortcuts" class="tab-panel" role="tabpanel" aria-labelledby="tabShortcutsBtn">
+        <div class="pane-title">Keyboard Shortcuts</div>
+        <div class="pane">
+          <div class="results">
+            <div class="result-item">
+              <strong>Ctrl/Cmd + F</strong>Search
+            </div>
+            <div class="result-item">
+              <strong>Ctrl/Cmd + E</strong>Source
+            </div>
+            <div class="result-item">
+              <strong>Ctrl/Cmd + O</strong>Open file
+            </div>
+            <div class="result-item">
+              <strong>Ctrl/Cmd + S</strong>Export
+            </div>
+            <div class="result-item">
+              <strong>Ctrl/Cmd + G</strong>Go to root
+            </div>
+            <div class="result-item">
+              <strong>Tab</strong>Next tab
+            </div>
+            <div class="result-item">
+              <strong>1-9</strong>Quick zoom
+            </div>
+            <div class="result-item">
+              <strong>+/-</strong>Zoom in/out
             </div>
           </div>
         </div>
@@ -694,9 +727,11 @@
   const tabOverviewBtn = document.getElementById('tabOverviewBtn');
   const tabJsonBtn = document.getElementById('tabJsonBtn');
   const tabSearchBtn = document.getElementById('tabSearchBtn');
+  const tabShortcutsBtn = document.getElementById('tabShortcutsBtn');
   const tabOverview = document.getElementById('tabOverview');
   const tabJson = document.getElementById('tabJson');
   const tabSearch = document.getElementById('tabSearch');
+  const tabShortcuts = document.getElementById('tabShortcuts');
   const jsonEditor = document.getElementById('jsonEditor');
   const jsonErr = document.getElementById('jsonErr');
   const jsonFind = document.getElementById('jsonFind');
@@ -1615,18 +1650,22 @@
     const isOverview = which === 'overview';
     const isJson = which === 'json';
     const isSearch = which === 'search';
+    const isShortcuts = which == 'shortcuts';
 
     tabOverviewBtn.classList.toggle('active', isOverview);
     tabJsonBtn.classList.toggle('active', isJson);
     tabSearchBtn.classList.toggle('active', isSearch);
+    tabShortcutsBtn.classList.toggle('active', isShortcuts);
 
     tabOverview.classList.toggle('active', isOverview);
     tabJson.classList.toggle('active', isJson);
     tabSearch.classList.toggle('active', isSearch);
+    tabShortcuts.classList.toggle('active', isShortcuts);
 
     tabOverviewBtn.setAttribute('aria-selected', String(isOverview));
     tabJsonBtn.setAttribute('aria-selected', String(isJson));
     tabSearchBtn.setAttribute('aria-selected', String(isSearch));
+    tabShortcutsBtn.setAttribute('aria-selected', String(isShortcuts));
 
     // When switching to JSON tab, ensure editor has latest text
     if (isJson && jsonEditor){
@@ -1649,10 +1688,11 @@
       }
     }
   }
-  if (tabOverviewBtn && tabJsonBtn && tabSearchBtn){
+  if (tabOverviewBtn && tabJsonBtn && tabSearchBtn && tabShortcutsBtn){
     tabOverviewBtn.addEventListener('click', ()=> activateTab('overview'));
     tabJsonBtn.addEventListener('click', ()=> activateTab('json'));
     tabSearchBtn.addEventListener('click', ()=> activateTab('search'));
+    tabShortcutsBtn.addEventListener('click', ()=> activateTab('shortcuts'));
   }
 
   // Search (Enter to apply)
@@ -1709,12 +1749,71 @@
     });
   }
 
-  // Keep Ctrl/Cmd+F focusing the search box
+  // Keyboard shortcuts
   document.addEventListener('keydown',(e)=>{
+    // Don't trigger shortcuts when typing in input fields
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    
+    // Ctrl/Cmd+F - Focus search
     if (e.key==='f' && (e.ctrlKey||e.metaKey)){
       e.preventDefault();
       searchEl.focus();
       searchEl.select();
+      activateTab('search');
+    }
+    // Ctrl/Cmd+E - Focus JSON editor
+    else if (e.key==='e' && (e.ctrlKey||e.metaKey)){
+      e.preventDefault();
+      activateTab('json');
+      jsonEditor.focus();
+      jsonEditor.select();
+    }
+    // Ctrl/Cmd+O - Open file dialog
+    else if (e.key==='o' && (e.ctrlKey||e.metaKey)){
+      e.preventDefault();
+      document.getElementById('openJsonDialog').click();
+    }
+    // Ctrl/Cmd+S - Export JSON
+    else if (e.key==='s' && (e.ctrlKey||e.metaKey)){
+      e.preventDefault();
+      exportBtn.click();
+    }
+    // Ctrl/Cmd+G - Go to root
+    else if (e.key==='g' && (e.ctrlKey||e.metaKey)){
+      e.preventDefault();
+      btnExpandAll.click();
+    }
+    // Escape - Close modal if open
+    else if (e.key==='Escape' && openModal.style.display==='flex'){
+      e.preventDefault();
+      hideOpenModal();
+    }
+    // Tab - Cycle through tabs (when not in input)
+    else if (e.key==='Tab' && !e.target.matches('input, textarea')){
+      e.preventDefault();
+      const tabs = ['overview', 'json', 'search', 'shortcuts'];
+      const currentTab = tabOverview.classList.contains('active') ? 'overview' :
+                        tabJson.classList.contains('active') ? 'json' :
+                        tabSearch.classList.contains('active') ? 'search' : 'shortcuts';
+      const currentIndex = tabs.indexOf(currentTab);
+      const nextIndex = (currentIndex + 1) % tabs.length;
+      activateTab(tabs[nextIndex]);
+    }
+    // 1-9 - Quick zoom levels
+    else if (e.key >= '1' && e.key <= '9' && !e.target.matches('input, textarea')){
+      e.preventDefault();
+      const zoomLevel = 0.2 + (parseInt(e.key) * 0.1); // 0.2 to 1.1
+      zoom = Math.min(3, Math.max(0.2, zoomLevel));
+      layoutAndRender(false);
+    }
+    // +/- - Zoom in/out
+    else if ((e.key==='+' || e.key==='=') && !e.target.matches('input, textarea')){
+      e.preventDefault();
+      zoomStep(1);
+    }
+    else if (e.key==='-' && !e.target.matches('input, textarea')){
+      e.preventDefault();
+      zoomStep(-1);
     }
   });
 
