@@ -326,6 +326,176 @@
     background:#0b1420; color:var(--muted); cursor:pointer;
   }
 
+  /* Modern Create Entry Dialog Styles */
+  .create-entry-modal {
+    background: linear-gradient(135deg, #0f1621 0%, #0b1119 100%);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4), 0 4px 20px rgba(106, 169, 255, 0.1);
+    max-width: 480px;
+    overflow: hidden;
+  }
+
+  .create-entry-modal .head {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, rgba(15, 22, 33, 0.8) 0%, rgba(11, 17, 25, 0.6) 100%);
+    backdrop-filter: blur(10px);
+  }
+
+  .create-entry-modal .modal-title {
+    display: flex;
+    align-items: center;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+  }
+
+  .create-entry-modal .modal-title svg {
+    color: var(--accent);
+  }
+
+  .create-entry-modal .body {
+    padding: 24px;
+  }
+
+  .create-entry-modal .form-section {
+    margin-bottom: 24px;
+  }
+
+  .create-entry-modal .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .create-entry-modal .form-group {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .create-entry-modal .form-group label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .create-entry-modal .form-group input,
+  .create-entry-modal .form-group select {
+    background: linear-gradient(135deg, #0b1420 0%, #0a0f18 100%);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    padding: 10px 12px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+  }
+
+  .create-entry-modal .form-group select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239fb0c3' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 8px center;
+    background-repeat: no-repeat;
+    background-size: 16px;
+    padding-right: 40px;
+  }
+
+  .create-entry-modal .form-group input:focus,
+  .create-entry-modal .form-group select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(106, 169, 255, 0.1);
+    background: linear-gradient(135deg, #0d1828 0%, #0f1a2a 100%);
+  }
+
+  .create-entry-modal .form-group select option {
+    background: #0f1621;
+    color: var(--text);
+    padding: 8px;
+  }
+
+  .create-entry-modal .form-group input::placeholder {
+    color: var(--muted);
+  }
+
+  .create-entry-modal .form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .create-entry-modal .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: linear-gradient(135deg, #182335 0%, #111826 100%);
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+  }
+
+  .create-entry-modal .btn:hover {
+    background: linear-gradient(135deg, #1a2639 0%, #141a2e 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  .create-entry-modal .btn:active {
+    transform: translateY(0);
+  }
+
+  .create-entry-modal .btn.primary {
+    background: linear-gradient(135deg, #1b2d4a 0%, #16243a 100%);
+    border-color: var(--accent);
+  }
+
+  .create-entry-modal .btn.primary:hover {
+    background: linear-gradient(135deg, #254064 0%, #1f2d4a 100%);
+    box-shadow: 0 4px 12px rgba(106, 169, 255, 0.2);
+  }
+
+  .create-entry-modal .btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 600px) {
+    .create-entry-modal {
+      max-width: 95vw;
+      margin: 0 10px;
+    }
+    
+    .create-entry-modal .form-row {
+      grid-template-columns: 1fr;
+    }
+    
+    .create-entry-modal .form-actions {
+      flex-direction: column-reverse;
+    }
+    
+    .create-entry-modal .btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
   /* Sidebar toggle button */
   .sidebar-toggle{
     position:absolute; left:12px; top:12px; z-index:16;
@@ -1996,29 +2166,58 @@
     backdrop.className = 'modal-backdrop';
     backdrop.style.display = 'none';
     const modal = document.createElement('div');
-    modal.className = 'modal';
+    modal.className = 'modal create-entry-modal';
     modal.innerHTML = `
       <div class="head">
-        <div>Create entry</div>
-        <button class="btn small" data-close>Close</button>
+        <div class="modal-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="margin-right:8px">
+            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+          </svg>
+          Create New Entry
+        </div>
+        <button class="btn small" data-close>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+          </svg>
+        </button>
       </div>
       <div class="body">
-        <div class="row">
-          <div id="createForm" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-            <input id="createKey" type="text" placeholder="key (objects only)" />
-            <select id="createType">
-              <option value="string">string</option>
-              <option value="number">number</option>
-              <option value="boolean">boolean</option>
-              <option value="null">null</option>
-              <option value="object">object</option>
-              <option value="array">array</option>
-            </select>
-            <input id="createValue" type="text" placeholder="value (ignored for object/array)" />
-            <div style="flex:1"></div>
-            <button class="btn" id="createCancel">Cancel</button>
-            <button class="btn primary" id="createAdd">Add</button>
+        <div class="form-section">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="createKey">Key (Objects Only)</label>
+              <input id="createKey" type="text" placeholder="Enter key name..." />
+            </div>
+            <div class="form-group">
+              <label for="createType">Data Type</label>
+              <select id="createType">
+                <option value="string">String</option>
+                <option value="number">Number</option>
+                <option value="boolean">Boolean</option>
+                <option value="null">Null</option>
+                <option value="object">Object</option>
+                <option value="array">Array</option>
+              </select>
+            </div>
           </div>
+          <div class="form-group">
+            <label for="createValue">Initial Value</label>
+            <input id="createValue" type="text" placeholder="Enter initial value (ignored for objects/arrays)" />
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn" id="createCancel">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right:4px">
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+            Cancel
+          </button>
+          <button class="btn primary" id="createAdd">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right:4px">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+            </svg>
+            Add Entry
+          </button>
         </div>
       </div>
     `;
