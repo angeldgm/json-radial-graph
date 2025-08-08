@@ -22,9 +22,68 @@
     --bg:#0b0f14;--panel:#0f1621;--panel2:#0b1119;--text:#e6edf3;--muted:#9fb0c3;
     --accent:#6aa9ff;--accent2:#51d0ff;--border:#1d2a3a;--node:#0f1623;--node2:#0c1320;
     --nodeHover:#17243a;--edge:#2a3a52;--danger:#ff6363;--ok:#43d19e;--warn:#ffd166;
+    --scrollbar-width: 8px;
+    --scrollbar-hover-width: 10px;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
+  
+  /* Custom Modern Scrollbar Styles */
+  ::-webkit-scrollbar {
+    width: var(--scrollbar-width);
+    height: var(--scrollbar-width);
+    background: transparent;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: rgba(11, 15, 20, 0.3);
+    border-radius: 4px;
+  }
+  
+  ::-webkit-scrollbar-track:hover {
+    background: rgba(11, 15, 20, 0.5);
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #2a3a52, #1d2a3a);
+    border-radius: 4px;
+    border: 1px solid rgba(11, 15, 20, 0.3);
+    transition: all 0.2s ease;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #3a4a62, #2d3a4a);
+    border-color: rgba(11, 15, 20, 0.5);
+    width: var(--scrollbar-hover-width);
+    height: var(--scrollbar-hover-width);
+  }
+  
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  
+  /* Firefox scrollbar styling */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #2a3a52 rgba(11, 15, 20, 0.3);
+  }
+  
+  *::-moz-scrollbar-track {
+    background: rgba(11, 15, 20, 0.3);
+    border-radius: 4px;
+  }
+  
+  *::-moz-scrollbar-thumb {
+    background: linear-gradient(180deg, #2a3a52, #1d2a3a);
+    border-radius: 4px;
+    border: 1px solid rgba(11, 15, 20, 0.3);
+    transition: all 0.2s ease;
+  }
+  
+  *::-moz-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #3a4a62, #2d3a4a);
+    border-color: rgba(11, 15, 20, 0.5);
+  }
   body{
     margin:0;background:radial-gradient(1200px 800px at 80% -10%, #182438 0%, #0b0f14 55%) no-repeat;
     color:var(--text); font:14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
@@ -65,7 +124,7 @@
   .modal .body{padding:12px;display:grid;gap:12px}
   .dropzone{border:2px dashed #2b3b55;border-radius:12px;padding:18px;text-align:center;color:var(--muted);background:#0b1420}
   .dropzone.dragover{border-color:var(--accent2);background:#0b142055;color:#cfefff}
-  .paste-area{width:100%;min-height:140px;background:#0b1420;border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .paste-area{width:100%;min-height:140px;background:#0b1420;border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;scrollbar-gutter: stable}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
   .right-controls .seg{display:inline-flex;align-items:center;gap:6px;background:#0d1522;border:1px solid var(--border);border-radius:10px;padding:6px 8px;color:var(--muted)}
   .right-controls .seg label{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
@@ -86,6 +145,7 @@
     overflow:auto;
     overflow-x:hidden; /* prevent horizontal bleed */
     transition:width .2s ease, min-width .2s ease, opacity .2s ease;
+    scrollbar-gutter: stable;
   }
   .sidebar.hidden{
     width:0; min-width:0; opacity:0; pointer-events:none;
@@ -136,6 +196,7 @@
     width:100%; min-height:240px; background:#0b1420; border:1px solid var(--border);
     border-radius:10px; color:var(--text); padding:10px; font-family:ui-monospace,Menlo,Consolas,monospace;
     white-space:pre; resize:vertical;
+    scrollbar-gutter: stable;
   }
   .pane-title{padding:10px 14px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--border);position:sticky;top:0;background:#0f1621f2;backdrop-filter:blur(6px)}
   .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}
@@ -182,7 +243,7 @@
   .footer{position:sticky;bottom:0;padding:8px 12px;font-size:12px;color:var(--muted);background:linear-gradient(180deg,transparent,#0b0f14 60%)}
 
   /* Graph area */
-  .canvas-wrap{position:relative;overflow:auto;background:linear-gradient(180deg,#0b0f1400,#0b0f14)}
+  .canvas-wrap{position:relative;overflow:auto;background:linear-gradient(180deg,#0b0f1400,#0b0f14);scrollbar-gutter: stable;}
   .canvas-inner { position: absolute; inset: 0; transform-origin: 0 0; }
   svg#edges{position:absolute;inset:0;pointer-events:none}
   .nodes-layer{position:absolute;inset:0}
