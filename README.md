@@ -4,7 +4,7 @@ Edit JSON visually. Add new entries, edit existing ones, search, replace, zoom, 
 ### <a href="https://angeldgm.github.io/json-radial-graph/">Go to web app</a>
 
 ### Demo
-![json-radial-graph](json_radial_graph.gif)
+![json-radial-graph](json_radial_graph_crop.gif)
 
 ### Support project
 <a href="https://www.buymeacoffee.com/gabaldon" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
@@ -22,7 +22,7 @@ Edit JSON visually. Add new entries, edit existing ones, search, replace, zoom, 
 
 ✅ Wheel to zoom, drag to move canvas
 
-✅ Open any JSON from disk, paste it create a new one
+✅ Open any JSON from disk, paste it or create a new one
 
 ✅ Keyboard shortcuts
 
